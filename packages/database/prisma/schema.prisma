@@ -1,0 +1,1054 @@
+// ============================================================================
+// NURSERY MANAGEMENT PLATFORM - PRISMA SCHEMA
+// Multi-tenant database with comprehensive UK EYFS compliance
+// ============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// MODULE A: CORE PLATFORM (TENANCY, USERS, RBAC)
+// ============================================================================
+
+/// Represents a nursery organization (tenant)
+model Tenant {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  subdomain String   @unique @db.VarChar(100)
+  
+  // Branding configuration
+  logoUrl       String?  @map("logo_url")
+  primaryColor  String   @default("#6366f1") @map("primary_color") @db.VarChar(20)
+  secondaryColor String  @default("#8b5cf6") @map("secondary_color") @db.VarChar(20)
+  
+  // Configuration flags (feature toggles per module)
+  config    Json     @default("{}")
+  
+  // Audit fields
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  isActive  Boolean  @default(true) @map("is_active")
+  
+  // Relations
+  users         User[]
+  children      Child[]
+  rooms         Room[]
+  staff         Staff[]
+  guardians     Guardian[]
+  dailyLogs     DailyLog[]
+  observations  Observation[]
+  accidents     Accident[]
+  safeguarding  SafeguardingLog[]
+  invoices      Invoice[]
+  auditLogs     AuditLog[]
+  consents      ConsentRecord[]
+  medications   MedicationRecord[]
+  newsletters   Newsletter[]
+  
+  @@map("tenants")
+}
+
+/// User account (staff or parent)
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String     @map("tenant_id") @db.Uuid
+  
+  email        String     @db.VarChar(255)
+  passwordHash String?    @map("password_hash")
+  
+  firstName    String     @map("first_name") @db.VarChar(100)
+  lastName     String     @map("last_name") @db.VarChar(100)
+  phone        String?    @db.VarChar(50)
+  avatarUrl    String?    @map("avatar_url")
+  
+  // Role-based access
+  role         UserRole   @default(PRACTITIONER)
+  permissions  Json       @default("[]") // Fine-grained CASL-style permissions
+  
+  // Status tracking
+  status       UserStatus @default(PENDING)
+  lastLoginAt  DateTime?  @map("last_login_at")
+  mfaEnabled   Boolean    @default(false) @map("mfa_enabled")
+  
+  // Magic link tokens
+  magicLinkToken   String?   @map("magic_link_token")
+  magicLinkExpiry  DateTime? @map("magic_link_expiry")
+  
+  // Audit fields
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staff        Staff?
+  guardian     Guardian?
+  dailyLogs    DailyLog[]
+  observations Observation[]
+  auditLogs    AuditLog[]
+  messages     Message[]  @relation("MessageSender")
+  receivedMsgs Message[]  @relation("MessageReceiver")
+  
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+  @@map("users")
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  DEPUTY
+  ROOM_LEADER
+  PRACTITIONER
+  ADMIN
+  PARENT
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  DISABLED
+}
+
+/// Physical rooms in the nursery
+model Room {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  
+  name        String   @db.VarChar(100)
+  description String?
+  
+  // Capacity and age requirements
+  capacity    Int
+  minAgeMonths Int     @map("min_age_months")
+  maxAgeMonths Int     @map("max_age_months")
+  
+  // Display configuration
+  color       String   @default("#6366f1") @db.VarChar(20)
+  icon        String?  @db.VarChar(50)
+  displayOrder Int     @default(0) @map("display_order")
+  
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  children    Child[]
+  staff       Staff[]
+  
+  @@index([tenantId])
+  @@map("rooms")
+}
+
+// ============================================================================
+// MODULE B: CHILD MANAGEMENT
+// ============================================================================
+
+/// Child profile - the central entity
+model Child {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  roomId      String?  @map("room_id") @db.Uuid
+  
+  // Basic information
+  firstName   String   @map("first_name") @db.VarChar(100)
+  lastName    String   @map("last_name") @db.VarChar(100)
+  dateOfBirth DateTime @map("date_of_birth") @db.Date
+  gender      Gender?
+  
+  // Profile customization
+  profilePhotoUrl String?  @map("profile_photo_url")
+  aboutMe         String?  @map("about_me") // Likes, dislikes, interests
+  
+  // UK EYFS-specific fields
+  uniquePupilNumber String? @map("upn") @db.VarChar(13) // UPN for school transitions
+  ethnicity         String? @db.VarChar(100)
+  languagesSpoken   String[] @map("languages_spoken")
+  homeLanguage      String?  @map("home_language") @db.VarChar(100)
+  
+  // Medical & Dietary (CRITICAL FOR SAFEGUARDING)
+  allergies         Json     @default("[]") // Array of allergy objects with severity
+  hasAllergy        Boolean  @default(false) @map("has_allergy")
+  hasMedicalCondition Boolean @default(false) @map("has_medical_condition")
+  medicalConditions String?  @map("medical_conditions")
+  medicationRequired Boolean @default(false) @map("medication_required")
+  dietaryRequirements DietaryType[] @map("dietary_requirements")
+  dietaryNotes      String?  @map("dietary_notes")
+  
+  // Attendance configuration
+  expectedDays      String[] @map("expected_days") // ["MON", "TUE", "WED"]
+  expectedHoursPerWeek Decimal? @map("expected_hours_per_week") @db.Decimal(5, 2)
+  
+  // Key Person (EYFS requirement)
+  keyPersonId String?  @map("key_person_id") @db.Uuid
+  
+  // Funding information
+  fundingType       FundingType? @map("funding_type")
+  fundingHours      Decimal?     @map("funding_hours") @db.Decimal(5, 2)
+  stretchedFunding  Boolean      @default(false) @map("stretched_funding")
+  
+  // Session configuration
+  startDate   DateTime?  @map("start_date") @db.Date
+  endDate     DateTime?  @map("end_date") @db.Date
+  
+  // Status
+  status      ChildStatus @default(ACTIVE)
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  room        Room?      @relation(fields: [roomId], references: [id])
+  keyPerson   Staff?     @relation("KeyPersonChildren", fields: [keyPersonId], references: [id])
+  guardians   ChildGuardian[]
+  contacts    EmergencyContact[]
+  dailyLogs   DailyLog[]
+  observations Observation[]
+  accidents   Accident[]
+  attendanceRecords AttendanceRecord[]
+  twoYearCheck TwoYearCheck?
+  medications MedicationRecord[]
+  safeguarding SafeguardingLog[]
+  invoiceItems InvoiceItem[]
+  
+  @@index([tenantId])
+  @@index([roomId])
+  @@index([keyPersonId])
+  @@map("children")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum DietaryType {
+  VEGETARIAN
+  VEGAN
+  HALAL
+  KOSHER
+  GLUTEN_FREE
+  DAIRY_FREE
+  NUT_FREE
+  EGG_FREE
+  PESCATARIAN
+  OTHER
+}
+
+enum FundingType {
+  NONE
+  UNIVERSAL_15
+  EXTENDED_30
+  TWO_YEAR_OLD
+}
+
+enum ChildStatus {
+  ENQUIRY
+  WAITLIST
+  ACTIVE
+  LEAVER
+  ARCHIVED
+}
+
+/// Guardian/Parent profile
+model Guardian {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  userId      String?  @unique @map("user_id") @db.Uuid
+  
+  // Personal details
+  title       String?  @db.VarChar(20)
+  firstName   String   @map("first_name") @db.VarChar(100)
+  lastName    String   @map("last_name") @db.VarChar(100)
+  email       String   @db.VarChar(255)
+  phone       String?  @db.VarChar(50)
+  mobile      String?  @db.VarChar(50)
+  
+  // Address
+  addressLine1 String? @map("address_line1") @db.VarChar(255)
+  addressLine2 String? @map("address_line2") @db.VarChar(255)
+  city         String? @db.VarChar(100)
+  postcode     String? @db.VarChar(20)
+  
+  // Relationship details
+  relationship String  @default("Parent") @db.VarChar(50)
+  
+  // Billing
+  isBillPayer Boolean @default(false) @map("is_bill_payer")
+  
+  // Tax-Free Childcare reference (for reconciliation)
+  tfcReference String? @map("tfc_reference") @db.VarChar(50)
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id])
+  children    ChildGuardian[]
+  invoices    Invoice[]
+  
+  @@index([tenantId])
+  @@index([userId])
+  @@map("guardians")
+}
+
+/// Junction table for Child-Guardian relationship
+model ChildGuardian {
+  id           String  @id @default(uuid()) @db.Uuid
+  childId      String  @map("child_id") @db.Uuid
+  guardianId   String  @map("guardian_id") @db.Uuid
+  
+  isPrimary    Boolean @default(false) @map("is_primary")
+  authorizedToCollect Boolean @default(true) @map("authorized_to_collect")
+  
+  // Collection authorization details
+  collectionPassword String? @map("collection_password") @db.VarChar(50)
+  photoVerificationUrl String? @map("photo_verification_url")
+  
+  // Notification preferences
+  receiveDailyUpdates Boolean @default(true) @map("receive_daily_updates")
+  receiveNewsletters  Boolean @default(true) @map("receive_newsletters")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  child       Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  guardian    Guardian  @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  
+  @@unique([childId, guardianId])
+  @@map("child_guardians")
+}
+
+/// Emergency contacts (non-guardian)
+model EmergencyContact {
+  id          String   @id @default(uuid()) @db.Uuid
+  childId     String   @map("child_id") @db.Uuid
+  
+  name        String   @db.VarChar(200)
+  relationship String  @db.VarChar(50)
+  phone       String   @db.VarChar(50)
+  mobile      String?  @db.VarChar(50)
+  
+  authorizedToCollect Boolean @default(false) @map("authorized_to_collect")
+  collectionPassword  String? @map("collection_password") @db.VarChar(50)
+  
+  priority    Int      @default(1) // Order of contact
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  
+  @@index([childId])
+  @@map("emergency_contacts")
+}
+
+// ============================================================================
+// MODULE C: DAILY CARE LOGS
+// ============================================================================
+
+/// Daily log entry (nappy, sleep, meals, activities)
+model DailyLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  childId     String      @map("child_id") @db.Uuid
+  authorId    String      @map("author_id") @db.Uuid
+  
+  type        DailyLogType
+  timestamp   DateTime    @default(now())
+  
+  // Generic data storage for log type
+  data        Json        // Type-specific data (e.g., nappy result, meal consumed)
+  
+  // Optional narrative
+  notes       String?
+  
+  // Media attachments
+  mediaUrls   String[]    @map("media_urls")
+  
+  // Publishing workflow
+  status      LogStatus   @default(DRAFT)
+  publishedAt DateTime?   @map("published_at")
+  approvedBy  String?     @map("approved_by") @db.Uuid
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child       Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id])
+  
+  @@index([tenantId])
+  @@index([childId])
+  @@index([timestamp])
+  @@index([type])
+  @@map("daily_logs")
+}
+
+enum DailyLogType {
+  NAPPY
+  TOILETING
+  SLEEP
+  MEAL
+  SNACK
+  DRINK
+  ACTIVITY
+  MOOD
+  NOTE
+  PHOTO
+  VIDEO
+  MILESTONE
+}
+
+enum LogStatus {
+  DRAFT
+  PENDING_APPROVAL
+  PUBLISHED
+}
+
+/// Attendance records (check-in/out)
+model AttendanceRecord {
+  id          String      @id @default(uuid()) @db.Uuid
+  childId     String      @map("child_id") @db.Uuid
+  date        DateTime    @db.Date
+  
+  // Exact timestamps (critical for ratio compliance)
+  checkInTime   DateTime?  @map("check_in_time")
+  checkOutTime  DateTime?  @map("check_out_time")
+  
+  // Who performed the check-in/out
+  checkedInBy   String?    @map("checked_in_by") @db.Uuid
+  checkedOutBy  String?    @map("checked_out_by") @db.Uuid
+  
+  // Collection details
+  collectedBy   String?    @map("collected_by") @db.VarChar(200)
+  collectorRelationship String? @map("collector_relationship") @db.VarChar(50)
+  
+  // Session info
+  bookedSession String?    @map("booked_session") @db.VarChar(50)
+  
+  // Status
+  status        AttendanceStatus @default(EXPECTED)
+  absenceReason String?    @map("absence_reason")
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  
+  // Relations
+  child       Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+  
+  @@unique([childId, date])
+  @@index([childId])
+  @@index([date])
+  @@map("attendance_records")
+}
+
+enum AttendanceStatus {
+  EXPECTED
+  CHECKED_IN
+  CHECKED_OUT
+  ABSENT_NOTIFIED
+  ABSENT_UNNOTIFIED
+}
+
+// ============================================================================
+// MODULE D: LEARNING & EYFS
+// ============================================================================
+
+/// Learning observation
+model Observation {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  childId     String      @map("child_id") @db.Uuid
+  authorId    String      @map("author_id") @db.Uuid
+  
+  // Observation content
+  title       String?     @db.VarChar(255)
+  narrative   String      // Free-text observation
+  
+  // Media attachments
+  mediaUrls   String[]    @map("media_urls")
+  
+  // EYFS Framework tagging (not forced granular tracking)
+  areasOfLearning EYFSArea[] @map("areas_of_learning")
+  characteristics CharacteristicOfLearning[] @map("characteristics")
+  
+  // Next steps planning
+  nextSteps   String?     @map("next_steps")
+  
+  // Publishing
+  status      LogStatus   @default(DRAFT)
+  publishedAt DateTime?   @map("published_at")
+  
+  // Parent interaction
+  parentComments String?  @map("parent_comments")
+  parentViewedAt DateTime? @map("parent_viewed_at")
+  
+  observedAt  DateTime    @map("observed_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child       Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id])
+  
+  @@index([tenantId])
+  @@index([childId])
+  @@index([observedAt])
+  @@map("observations")
+}
+
+enum EYFSArea {
+  COMMUNICATION_AND_LANGUAGE
+  PHYSICAL_DEVELOPMENT
+  PERSONAL_SOCIAL_EMOTIONAL
+  LITERACY
+  MATHEMATICS
+  UNDERSTANDING_THE_WORLD
+  EXPRESSIVE_ARTS
+}
+
+enum CharacteristicOfLearning {
+  PLAYING_AND_EXPLORING
+  ACTIVE_LEARNING
+  CREATING_AND_THINKING_CRITICALLY
+}
+
+/// 2-Year Progress Check (statutory requirement)
+model TwoYearCheck {
+  id          String      @id @default(uuid()) @db.Uuid
+  childId     String      @unique @map("child_id") @db.Uuid
+  
+  // Assessment date
+  assessmentDate DateTime  @map("assessment_date") @db.Date
+  
+  // Summary of development in prime areas
+  communicationSummary String @map("communication_summary")
+  physicalSummary      String @map("physical_summary")
+  psedSummary          String @map("psed_summary") // Personal, Social, Emotional Dev
+  
+  // Overall assessment
+  overallProgress ProgressLevel @map("overall_progress")
+  areasOfStrength String?  @map("areas_of_strength")
+  areasForSupport String?  @map("areas_for_support")
+  
+  // Practitioner details
+  assessorId    String    @map("assessor_id") @db.Uuid
+  assessorName  String    @map("assessor_name") @db.VarChar(200)
+  
+  // Parent involvement
+  parentComments String?  @map("parent_comments")
+  parentSignedAt DateTime? @map("parent_signed_at")
+  
+  // Document generation
+  pdfUrl       String?    @map("pdf_url")
+  lockedAt     DateTime?  @map("locked_at") // Once signed, becomes immutable
+  
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  
+  // Relations
+  child        Child      @relation(fields: [childId], references: [id], onDelete: Cascade)
+  
+  @@map("two_year_checks")
+}
+
+enum ProgressLevel {
+  EMERGING
+  EXPECTED
+  EXCEEDING
+}
+
+// ============================================================================
+// MODULE E: SAFEGUARDING & INCIDENTS
+// ============================================================================
+
+/// Accident record with body map
+model Accident {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  childId     String      @map("child_id") @db.Uuid
+  
+  // When and where
+  occurredAt  DateTime    @map("occurred_at")
+  location    String      @db.VarChar(255)
+  
+  // What happened
+  description String
+  
+  // Body map (coordinates for injury location)
+  bodyMapData Json?       @map("body_map_data") // { locations: [{ x, y, label }] }
+  injuryType  String?     @map("injury_type") @db.VarChar(100)
+  injurySeverity InjurySeverity? @map("injury_severity")
+  
+  // Treatment given
+  firstAidGiven String?   @map("first_aid_given")
+  firstAidBy    String    @map("first_aid_by") @db.VarChar(200)
+  
+  // Witnesses
+  witnessName   String?   @map("witness_name") @db.VarChar(200)
+  witnessStatement String? @map("witness_statement")
+  
+  // Parent notification
+  parentNotifiedAt DateTime? @map("parent_notified_at")
+  parentNotifiedBy String?   @map("parent_notified_by") @db.VarChar(200)
+  
+  // Parent acknowledgement (e-signature)
+  parentSignature   String?   @map("parent_signature") // Base64 or URL
+  parentSignedAt    DateTime? @map("parent_signed_at")
+  signatureIpAddress String?  @map("signature_ip_address") @db.VarChar(45)
+  
+  // Form completion
+  reportedBy  String      @map("reported_by") @db.VarChar(200)
+  completedAt DateTime?   @map("completed_at")
+  
+  // RIDDOR reportable
+  isRiddorReportable Boolean @default(false) @map("is_riddor_reportable")
+  riddorRefNumber    String? @map("riddor_ref_number") @db.VarChar(50)
+  
+  // PDF generation
+  pdfUrl      String?     @map("pdf_url")
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child       Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId])
+  @@index([childId])
+  @@index([occurredAt])
+  @@map("accidents")
+}
+
+enum InjurySeverity {
+  MINOR
+  MODERATE
+  SERIOUS
+  CRITICAL
+}
+
+/// Confidential safeguarding concerns (DSL access only)
+model SafeguardingLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  childId     String      @map("child_id") @db.Uuid
+  
+  // Concern details
+  concernDate DateTime    @map("concern_date")
+  concernType SafeguardingType @map("concern_type")
+  description String
+  
+  // Observations
+  physicalIndicators String? @map("physical_indicators")
+  behavioralIndicators String? @map("behavioral_indicators")
+  
+  // Who was informed
+  reportedToName  String?  @map("reported_to_name") @db.VarChar(200)
+  reportedToRole  String?  @map("reported_to_role") @db.VarChar(100)
+  reportedAt      DateTime? @map("reported_at")
+  
+  // External referrals
+  externalReferral Boolean  @default(false) @map("external_referral")
+  referralAgency   String?  @map("referral_agency") @db.VarChar(200)
+  referralRef      String?  @map("referral_ref") @db.VarChar(100)
+  
+  // Status tracking
+  status      SafeguardingStatus @default(OPEN)
+  outcome     String?
+  closedAt    DateTime?  @map("closed_at")
+  
+  // Record keeping
+  recordedBy  String     @map("recorded_by") @db.VarChar(200)
+  
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child       Child      @relation(fields: [childId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId])
+  @@index([childId])
+  @@map("safeguarding_logs")
+}
+
+enum SafeguardingType {
+  PHYSICAL_ABUSE
+  EMOTIONAL_ABUSE
+  NEGLECT
+  SEXUAL_ABUSE
+  DOMESTIC_VIOLENCE
+  CONCERN_FOR_WELFARE
+  DISCLOSURE
+  OTHER
+}
+
+enum SafeguardingStatus {
+  OPEN
+  MONITORING
+  REFERRED
+  CLOSED
+}
+
+/// Medication administration records
+model MedicationRecord {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  childId     String      @map("child_id") @db.Uuid
+  
+  // Medication details
+  medicationName String   @map("medication_name") @db.VarChar(255)
+  dosage        String    @db.VarChar(100)
+  frequency     String    @db.VarChar(100)
+  
+  // Consent
+  consentGivenBy String   @map("consent_given_by") @db.VarChar(200)
+  consentDate    DateTime @map("consent_date") @db.Date
+  consentSignature String? @map("consent_signature")
+  
+  // Administration log
+  administeredAt DateTime? @map("administered_at")
+  administeredBy String?   @map("administered_by") @db.VarChar(200)
+  witnessedBy    String?   @map("witnessed_by") @db.VarChar(200)
+  batchNumber    String?   @map("batch_number") @db.VarChar(100)
+  
+  // Period
+  startDate     DateTime   @map("start_date") @db.Date
+  endDate       DateTime?  @map("end_date") @db.Date
+  
+  notes         String?
+  
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child         Child      @relation(fields: [childId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId])
+  @@index([childId])
+  @@map("medication_records")
+}
+
+// ============================================================================
+// MODULE F: PARENT PORTAL & COMMUNICATIONS
+// ============================================================================
+
+/// Messages between staff and parents
+model Message {
+  id          String      @id @default(uuid()) @db.Uuid
+  senderId    String      @map("sender_id") @db.Uuid
+  receiverId  String      @map("receiver_id") @db.Uuid
+  
+  content     String
+  
+  // Read tracking
+  readAt      DateTime?   @map("read_at")
+  
+  // Attachments
+  attachmentUrls String[] @map("attachment_urls")
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+  
+  // Relations
+  sender      User        @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User        @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+/// Consent records for various activities
+model ConsentRecord {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  
+  // What consent is for
+  consentType ConsentType @map("consent_type")
+  description String?
+  
+  // Who gave consent
+  givenBy     String      @map("given_by") @db.VarChar(200)
+  givenAt     DateTime    @map("given_at")
+  
+  // E-signature audit trail
+  signatureData String?   @map("signature_data") // Base64 signature image
+  ipAddress     String?   @map("ip_address") @db.VarChar(45)
+  userAgent     String?   @map("user_agent")
+  
+  // Consent status
+  isGranted   Boolean     @map("is_granted")
+  revokedAt   DateTime?   @map("revoked_at")
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId])
+  @@index([consentType])
+  @@map("consent_records")
+}
+
+enum ConsentType {
+  PHOTOS_INTERNAL
+  PHOTOS_SOCIAL_MEDIA
+  PHOTOS_WEBSITE
+  OUTINGS
+  SUN_CREAM
+  FACE_PAINTING
+  TRANSPORT
+  EMERGENCY_MEDICAL
+  TERMS_AND_CONDITIONS
+  PRIVACY_POLICY
+}
+
+/// Newsletter for nursery-wide announcements
+model Newsletter {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  
+  title       String      @db.VarChar(255)
+  content     String      // Rich text HTML
+  
+  // Scheduling
+  publishedAt DateTime?   @map("published_at")
+  scheduledFor DateTime?  @map("scheduled_for")
+  
+  // Stats
+  totalSent   Int         @default(0) @map("total_sent")
+  totalOpened Int         @default(0) @map("total_opened")
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId])
+  @@map("newsletters")
+}
+
+// ============================================================================
+// MODULE G: BILLING & FUNDING (UK SPECIFIC)
+// ============================================================================
+
+/// Invoice for billing parents
+model Invoice {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  guardianId  String        @map("guardian_id") @db.Uuid
+  
+  // Invoice details
+  invoiceNumber String      @unique @map("invoice_number") @db.VarChar(50)
+  issueDate     DateTime    @map("issue_date") @db.Date
+  dueDate       DateTime    @map("due_date") @db.Date
+  
+  // Amounts (in pence for precision)
+  subtotalPence Int         @map("subtotal_pence")
+  discountPence Int         @default(0) @map("discount_pence")
+  fundingPence  Int         @default(0) @map("funding_pence")
+  taxPence      Int         @default(0) @map("tax_pence")
+  totalPence    Int         @map("total_pence")
+  
+  // Payment tracking
+  status        InvoiceStatus @default(DRAFT)
+  paidAt        DateTime?    @map("paid_at")
+  paymentMethod String?      @map("payment_method") @db.VarChar(50)
+  paymentRef    String?      @map("payment_ref") @db.VarChar(100)
+  
+  // TFC reconciliation
+  tfcAmount     Int?         @map("tfc_amount") // Tax-Free Childcare portion
+  tfcReference  String?      @map("tfc_reference") @db.VarChar(50)
+  
+  // Notes
+  notes         String?
+  
+  // PDF
+  pdfUrl        String?      @map("pdf_url")
+  
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  guardian      Guardian     @relation(fields: [guardianId], references: [id])
+  items         InvoiceItem[]
+  
+  @@index([tenantId])
+  @@index([guardianId])
+  @@index([status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+/// Invoice line items
+model InvoiceItem {
+  id          String      @id @default(uuid()) @db.Uuid
+  invoiceId   String      @map("invoice_id") @db.Uuid
+  childId     String?     @map("child_id") @db.Uuid
+  
+  description String      @db.VarChar(500)
+  quantity    Decimal     @db.Decimal(10, 2)
+  unitPricePence Int      @map("unit_price_pence")
+  totalPence  Int         @map("total_pence")
+  
+  // Type categorization
+  itemType    InvoiceItemType @map("item_type")
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+  
+  // Relations
+  invoice     Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  child       Child?      @relation(fields: [childId], references: [id])
+  
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+enum InvoiceItemType {
+  SESSION_FEE
+  ADDITIONAL_HOURS
+  LATE_PICKUP_FEE
+  CONSUMABLES
+  REGISTRATION_FEE
+  DEPOSIT
+  MEALS
+  DISCOUNT
+  FUNDING_REDUCTION
+  OTHER
+}
+
+// ============================================================================
+// MODULE H: STAFF & OPERATIONS
+// ============================================================================
+
+/// Staff profile (extends User)
+model Staff {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  userId      String      @unique @map("user_id") @db.Uuid
+  roomId      String?     @map("room_id") @db.Uuid
+  
+  // Employment details
+  employeeNumber String?  @map("employee_number") @db.VarChar(50)
+  jobTitle       String?  @map("job_title") @db.VarChar(100)
+  startDate      DateTime? @map("start_date") @db.Date
+  
+  // Qualifications (EYFS requirements)
+  qualificationLevel Int? @map("qualification_level") // Level 2, 3, 6, etc.
+  qualifications     Json @default("[]") // Array of qualification objects
+  
+  // Compliance tracking
+  dbsNumber          String?   @map("dbs_number") @db.VarChar(50)
+  dbsIssueDate       DateTime? @map("dbs_issue_date") @db.Date
+  dbsExpiryDate      DateTime? @map("dbs_expiry_date") @db.Date
+  
+  // First Aid
+  firstAidCertified  Boolean   @default(false) @map("first_aid_certified")
+  firstAidExpiry     DateTime? @map("first_aid_expiry") @db.Date
+  paediatricFirstAid Boolean   @default(false) @map("paediatric_first_aid")
+  
+  // Safeguarding training
+  safeguardingTrainingDate DateTime? @map("safeguarding_training_date") @db.Date
+  isDSL              Boolean   @default(false) @map("is_dsl") // Designated Safeguarding Lead
+  
+  // Contract info
+  contractType       String?   @map("contract_type") @db.VarChar(50)
+  weeklyHours        Decimal?  @map("weekly_hours") @db.Decimal(5, 2)
+  
+  isActive           Boolean   @default(true) @map("is_active")
+  
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room               Room?     @relation(fields: [roomId], references: [id])
+  keyChildren        Child[]   @relation("KeyPersonChildren")
+  
+  @@index([tenantId])
+  @@index([userId])
+  @@map("staff")
+}
+
+// ============================================================================
+// AUDIT & COMPLIANCE
+// ============================================================================
+
+/// Immutable audit log for all system events
+model AuditLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  userId      String?     @map("user_id") @db.Uuid
+  
+  // Action details
+  action      AuditAction
+  entityType  String      @map("entity_type") @db.VarChar(100)
+  entityId    String?     @map("entity_id") @db.VarChar(100)
+  
+  // Change tracking
+  previousData Json?      @map("previous_data")
+  newData      Json?      @map("new_data")
+  
+  // Request context
+  ipAddress   String?     @map("ip_address") @db.VarChar(45)
+  userAgent   String?     @map("user_agent")
+  
+  // Timestamp (immutable)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  
+  // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id])
+  
+  @@index([tenantId])
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  PERMISSION_CHANGE
+  SIGNATURE_CAPTURE
+  PDF_GENERATED
+}

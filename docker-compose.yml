@@ -1,0 +1,60 @@
+services:
+  # PostgreSQL 16 with RLS support
+  postgres:
+    image: postgres:16-alpine
+    container_name: nursery_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nursery_admin
+      POSTGRES_PASSWORD: Robyn2016!
+      POSTGRES_DB: nursery_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U nursery_admin -d nursery_platform" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for sessions, caching, and job queues
+  redis:
+    image: redis:7-alpine
+    container_name: nursery_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO for S3-compatible object storage (photos, documents)
+  minio:
+    image: minio/minio:latest
+    container_name: nursery_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: nursery_storage
+      MINIO_ROOT_PASSWORD: Robyn2016!
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

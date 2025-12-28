@@ -1,0 +1,540 @@
+/* ============================================================================
+   NURSERY PLATFORM - PREMIUM DESIGN SYSTEM
+   Light-first theme optimized for nursery environments
+   Compatible with Tailwind CSS v4
+   ============================================================================ */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================================
+   THEME CONFIGURATION
+   ============================================================================ */
+
+@theme inline {
+  /* Core colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Component colors */
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+
+  /* Chart colors */
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+
+  /* Base component tokens */
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Status colors */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+
+  /* Border radius tokens */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+/* ============================================================================
+   LIGHT THEME (DEFAULT) - Optimized for bright nursery environments
+   ============================================================================ */
+
+:root {
+  --radius: 0.75rem;
+
+  /* Clean, warm light palette */
+  --background: oklch(0.985 0.002 90);
+  --foreground: oklch(0.20 0.02 270);
+
+  /* Subtle cards with soft shadows */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.20 0.02 270);
+
+  /* Popovers */
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.20 0.02 270);
+
+  /* Brand primary - Friendly purple/violet */
+  --primary: oklch(0.55 0.25 280);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Secondary */
+  --secondary: oklch(0.96 0.01 270);
+  --secondary-foreground: oklch(0.25 0.02 270);
+
+  /* Muted elements */
+  --muted: oklch(0.96 0.005 270);
+  --muted-foreground: oklch(0.45 0.01 270);
+
+  /* Accent - Teal/Cyan */
+  --accent: oklch(0.60 0.15 190);
+  --accent-foreground: oklch(1 0 0);
+
+  /* Status colors */
+  --destructive: oklch(0.55 0.25 25);
+  --success: oklch(0.55 0.18 145);
+  --warning: oklch(0.70 0.18 85);
+  --info: oklch(0.55 0.18 240);
+
+  /* Borders and inputs */
+  --border: oklch(0.90 0.005 270);
+  --input: oklch(0.96 0.005 270);
+  --ring: oklch(0.55 0.25 280);
+
+  /* Charts */
+  --chart-1: oklch(0.55 0.25 280);
+  --chart-2: oklch(0.60 0.18 190);
+  --chart-3: oklch(0.55 0.18 145);
+  --chart-4: oklch(0.70 0.15 85);
+  --chart-5: oklch(0.60 0.22 320);
+
+  /* Sidebar - Light with subtle warmth */
+  --sidebar: oklch(0.98 0.003 90);
+  --sidebar-foreground: oklch(0.25 0.02 270);
+  --sidebar-primary: oklch(0.55 0.25 280);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.95 0.01 280);
+  --sidebar-accent-foreground: oklch(0.25 0.02 270);
+  --sidebar-border: oklch(0.92 0.005 270);
+  --sidebar-ring: oklch(0.55 0.25 280);
+
+  /* Light theme glass effect - subtle */
+  --glass-bg: oklch(1 0 0 / 70%);
+  --glass-border: oklch(0 0 0 / 8%);
+  --glass-shadow: 0 4px 24px oklch(0 0 0 / 8%);
+
+  /* Gradient definitions */
+  --gradient-primary: linear-gradient(135deg, oklch(0.55 0.25 280), oklch(0.50 0.22 320));
+  --gradient-accent: linear-gradient(135deg, oklch(0.60 0.15 190), oklch(0.55 0.18 170));
+  --gradient-success: linear-gradient(135deg, oklch(0.55 0.18 145), oklch(0.50 0.16 165));
+
+  /* Subtle glow for light mode */
+  --glow-primary: 0 2px 12px oklch(0.55 0.25 280 / 20%);
+  --glow-accent: 0 2px 12px oklch(0.60 0.15 190 / 20%);
+  --glow-success: 0 2px 10px oklch(0.55 0.18 145 / 15%);
+}
+
+/* ============================================================================
+   DARK THEME (OPTIONAL)
+   ============================================================================ */
+
+.dark {
+  --background: oklch(0.12 0.01 270);
+  --foreground: oklch(0.98 0 0);
+
+  --card: oklch(0.16 0.01 270 / 80%);
+  --card-foreground: oklch(0.98 0 0);
+
+  --popover: oklch(0.14 0.015 270 / 95%);
+  --popover-foreground: oklch(0.98 0 0);
+
+  --primary: oklch(0.65 0.25 280);
+  --primary-foreground: oklch(0.98 0 0);
+
+  --secondary: oklch(0.25 0.05 280 / 60%);
+  --secondary-foreground: oklch(0.95 0 0);
+
+  --muted: oklch(0.22 0.02 270 / 50%);
+  --muted-foreground: oklch(0.65 0 0);
+
+  --accent: oklch(0.70 0.15 190);
+  --accent-foreground: oklch(0.12 0 0);
+
+  --destructive: oklch(0.65 0.25 25);
+  --success: oklch(0.70 0.20 145);
+  --warning: oklch(0.78 0.18 85);
+  --info: oklch(0.65 0.20 240);
+
+  --border: oklch(0.35 0.02 270 / 30%);
+  --input: oklch(0.25 0.02 270 / 50%);
+  --ring: oklch(0.65 0.25 280);
+
+  --chart-1: oklch(0.65 0.25 280);
+  --chart-2: oklch(0.70 0.20 190);
+  --chart-3: oklch(0.75 0.18 145);
+  --chart-4: oklch(0.78 0.15 85);
+  --chart-5: oklch(0.72 0.22 320);
+
+  --sidebar: oklch(0.10 0.015 270 / 90%);
+  --sidebar-foreground: oklch(0.95 0 0);
+  --sidebar-primary: oklch(0.65 0.25 280);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.20 0.03 280 / 50%);
+  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --sidebar-border: oklch(0.30 0.02 270 / 25%);
+  --sidebar-ring: oklch(0.65 0.25 280);
+
+  --glass-bg: oklch(0.16 0.01 270 / 40%);
+  --glass-border: oklch(0.50 0.02 270 / 15%);
+  --glass-shadow: 0 8px 32px oklch(0 0 0 / 40%);
+
+  --gradient-primary: linear-gradient(135deg, oklch(0.65 0.25 280), oklch(0.60 0.22 320));
+  --gradient-accent: linear-gradient(135deg, oklch(0.70 0.15 190), oklch(0.65 0.20 170));
+  --gradient-success: linear-gradient(135deg, oklch(0.70 0.20 145), oklch(0.65 0.18 165));
+
+  --glow-primary: 0 0 20px oklch(0.65 0.25 280 / 50%);
+  --glow-accent: 0 0 20px oklch(0.70 0.15 190 / 50%);
+  --glow-success: 0 0 15px oklch(0.70 0.20 145 / 40%);
+}
+
+/* ============================================================================
+   BASE STYLES
+   ============================================================================ */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    min-height: 100vh;
+  }
+
+  /* Light mode subtle background pattern */
+  body {
+    background-image:
+      radial-gradient(ellipse at top left, oklch(0.55 0.08 280 / 5%) 0%, transparent 40%),
+      radial-gradient(ellipse at bottom right, oklch(0.60 0.08 190 / 5%) 0%, transparent 40%);
+    background-attachment: fixed;
+  }
+
+  /* Dark mode background */
+  .dark body {
+    background-image:
+      radial-gradient(ellipse at top, oklch(0.20 0.04 280 / 30%) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, oklch(0.18 0.03 190 / 20%) 0%, transparent 40%);
+  }
+
+  /* Custom scrollbar - light */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: oklch(0.95 0.005 270);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.80 0.01 270);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.70 0.015 270);
+  }
+
+  /* Dark mode scrollbar */
+  .dark ::-webkit-scrollbar-track {
+    background: oklch(0.15 0.01 270 / 50%);
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: oklch(0.35 0.02 270 / 60%);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.45 0.03 270 / 80%);
+  }
+
+  ::selection {
+    background: oklch(0.55 0.25 280 / 30%);
+  }
+
+  .dark ::selection {
+    background: oklch(0.65 0.25 280 / 40%);
+    color: white;
+  }
+}
+
+/* ============================================================================
+   GLASS EFFECTS
+   ============================================================================ */
+
+/* Light mode glass - clean, subtle */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-subtle {
+  background: oklch(0 0 0 / 3%);
+  border: 1px solid oklch(0 0 0 / 5%);
+}
+
+.glass-strong {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Dark mode glass adjustments */
+.dark .glass-subtle {
+  background: oklch(1 0 0 / 5%);
+  border: 1px solid oklch(1 0 0 / 8%);
+}
+
+/* ============================================================================
+   STAT CARDS
+   ============================================================================ */
+
+.stat-card {
+  background: var(--card);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px oklch(0 0 0 / 4%);
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 16px oklch(0 0 0 / 8%);
+  transform: translateY(-2px);
+}
+
+.dark .stat-card {
+  box-shadow: 0 4px 20px oklch(0 0 0 / 25%);
+}
+
+.dark .stat-card:hover {
+  box-shadow: 0 8px 30px oklch(0 0 0 / 35%);
+}
+
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
+
+.btn-premium {
+  background: var(--gradient-primary);
+  color: white;
+  font-weight: 500;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-lg);
+  border: none;
+  box-shadow: 0 2px 8px oklch(0.55 0.25 280 / 25%);
+  transition: all 0.2s ease;
+}
+
+.btn-premium:hover {
+  box-shadow: 0 4px 16px oklch(0.55 0.25 280 / 35%);
+  transform: translateY(-1px);
+}
+
+.dark .btn-premium {
+  box-shadow: var(--glow-primary);
+}
+
+.dark .btn-premium:hover {
+  box-shadow: 0 0 30px oklch(0.65 0.25 280 / 60%);
+}
+
+/* ============================================================================
+   INPUTS
+   ============================================================================ */
+
+.input-premium {
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.input-premium:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px oklch(0.55 0.25 280 / 15%);
+  outline: none;
+}
+
+.dark .input-premium:focus {
+  box-shadow: 0 0 0 3px oklch(0.65 0.25 280 / 25%);
+}
+
+/* ============================================================================
+   STATUS BADGES
+   ============================================================================ */
+
+.allergy-badge {
+  background: linear-gradient(135deg, oklch(0.55 0.25 25), oklch(0.50 0.22 35));
+  color: white;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  animation: pulse-subtle 2s ease-in-out infinite;
+  box-shadow: 0 2px 8px oklch(0.55 0.25 25 / 30%);
+}
+
+.dark .allergy-badge {
+  background: linear-gradient(135deg, oklch(0.65 0.25 25), oklch(0.60 0.22 35));
+  box-shadow: 0 0 15px oklch(0.65 0.25 25 / 50%);
+}
+
+@keyframes pulse-subtle {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* ============================================================================
+   ICON CONTAINERS
+   ============================================================================ */
+
+.icon-container {
+  background: var(--gradient-primary);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px oklch(0.55 0.25 280 / 25%);
+}
+
+.dark .icon-container {
+  box-shadow: var(--glow-primary);
+}
+
+/* ============================================================================
+   TEXT GRADIENTS
+   ============================================================================ */
+
+.text-gradient {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      oklch(1 0 0 / 10%) 50%,
+      transparent 100%);
+  background-size: 1000px 100%;
+}
+
+/* ============================================================================
+   GRADIENT BACKGROUND
+   ============================================================================ */
+
+.bg-gradient-mesh {
+  background:
+    radial-gradient(at 40% 20%, oklch(0.55 0.15 280 / 15%) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, oklch(0.60 0.12 190 / 10%) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, oklch(0.55 0.12 280 / 10%) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, oklch(0.60 0.10 145 / 8%) 0px, transparent 50%),
+    var(--background);
+}
+
+.dark .bg-gradient-mesh {
+  background:
+    radial-gradient(at 40% 20%, oklch(0.65 0.25 280 / 30%) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, oklch(0.70 0.20 190 / 20%) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, oklch(0.60 0.20 280 / 15%) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, oklch(0.70 0.15 145 / 10%) 0px, transparent 50%),
+    var(--background);
+}
+
+/* ============================================================================
+   NAVIGATION LINKS
+   ============================================================================ */
+
+.nav-link {
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+  transition: all 0.15s ease;
+}
+
+.nav-link:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.nav-link.active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.nav-link.active:hover {
+  background: var(--primary);
+}
