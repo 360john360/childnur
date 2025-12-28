@@ -202,6 +202,15 @@ export default function LoginPage() {
                                 Start your free trial
                             </Link>
                         </div>
+
+                        <div className="mt-4 text-center">
+                            <Link
+                                href="/auth/magic-link"
+                                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                            >
+                                Parent? Login with email link →
+                            </Link>
+                        </div>
                     </div>
                 </motion.div>
             </div>

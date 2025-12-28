@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { ChildrenModule } from './children/children.module';
 import { DailyLogsModule } from './daily-logs/daily-logs.module';
 import { AttendanceModule } from './attendance/attendance.module';
+import { ParentModule } from './parent/parent.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AttendanceModule } from './attendance/attendance.module';
     ChildrenModule,
     DailyLogsModule,
     AttendanceModule,
+    ParentModule,
   ],
 })
 export class AppModule { }
