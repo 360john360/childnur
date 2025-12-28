@@ -5,6 +5,7 @@
 
 import { PrismaClient, UserRole, UserStatus, Gender, DietaryType, FundingType, ChildStatus, DailyLogType, LogStatus, EYFSArea, CharacteristicOfLearning } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -31,6 +32,10 @@ const GUARDIAN_IDS = Array.from({ length: 12 }, () => uuid());
 
 async function main() {
     console.log('🌱 Starting database seed...\n');
+
+    // Generate a proper bcrypt password hash for all demo accounts (password: demo123)
+    const passwordHash = await bcrypt.hash('demo123', 10);
+    console.log('🔐 Generated password hash for demo accounts');
 
     // Clear existing data (in development only)
     console.log('🧹 Clearing existing data...');
@@ -68,7 +73,7 @@ async function main() {
             id: OWNER_USER_ID,
             tenantId: TENANT_ID,
             email: 'owner@sunflower-nursery.co.uk',
-            passwordHash: '$2b$10$demohashedpassword', // In production, use bcrypt
+            passwordHash, // In production, use bcrypt
             firstName: 'Sarah',
             lastName: 'Thompson',
             phone: '07700 900001',
@@ -84,7 +89,7 @@ async function main() {
             id: MANAGER_USER_ID,
             tenantId: TENANT_ID,
             email: 'jane.smith@sunflower-nursery.co.uk',
-            passwordHash: '$2b$10$demohashedpassword',
+            passwordHash,
             firstName: 'Jane',
             lastName: 'Smith',
             phone: '07700 900002',
@@ -99,7 +104,7 @@ async function main() {
         data: {
             tenantId: TENANT_ID,
             email: 'demo@nurseryhub.co.uk',
-            passwordHash: '$2b$10$demohashedpassword', // password: demo123
+            passwordHash, // password: demo123
             firstName: 'Demo',
             lastName: 'User',
             role: UserRole.MANAGER,
@@ -123,7 +128,7 @@ async function main() {
                 id: PRACTITIONER_IDS[i],
                 tenantId: TENANT_ID,
                 email: `${p.firstName.toLowerCase()}.${p.lastName.toLowerCase()}@sunflower-nursery.co.uk`,
-                passwordHash: '$2b$10$demohashedpassword',
+                passwordHash,
                 firstName: p.firstName,
                 lastName: p.lastName,
                 role: UserRole.PRACTITIONER,
@@ -307,7 +312,7 @@ async function main() {
                 id: parentUserId,
                 tenantId: TENANT_ID,
                 email: `${c.firstName.toLowerCase()}.parent@email.com`,
-                passwordHash: '$2b$10$demohashedpassword',
+                passwordHash,
                 firstName: 'Parent',
                 lastName: c.lastName,
                 role: UserRole.PARENT,

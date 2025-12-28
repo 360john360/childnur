@@ -7,6 +7,8 @@ import { DailyLogsModule } from './daily-logs/daily-logs.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { ParentModule } from './parent/parent.module';
 import { BillingModule } from './billing/billing.module';
+import { AuditModule } from './audit/audit.module';
+import { MessagingModule } from './messaging/messaging.module';
 
 @Module({
   imports: [
@@ -15,12 +17,16 @@ import { BillingModule } from './billing/billing.module';
       envFilePath: '../../.env',
     }),
     PrismaModule,
+    AuditModule,
     AuthModule,
     ChildrenModule,
     DailyLogsModule,
     AttendanceModule,
     ParentModule,
     BillingModule,
+    MessagingModule,
   ],
 })
 export class AppModule { }
+
+

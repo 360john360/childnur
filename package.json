@@ -27,6 +27,7 @@
     "clean": "rimraf node_modules apps/*/node_modules packages/*/node_modules"
   },
   "devDependencies": {
+    "@types/multer": "^2.0.0",
     "concurrently": "^8.2.2",
     "rimraf": "^5.0.5",
     "typescript": "^5.3.3"

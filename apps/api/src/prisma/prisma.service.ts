@@ -1,39 +1,46 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit, INestApplication } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-    constructor() {
-        super({
-            log: process.env.NODE_ENV === 'development'
-                ? ['query', 'info', 'warn', 'error']
-                : ['error'],
-        });
-    }
-
+export class PrismaService extends PrismaClient implements OnModuleInit {
     async onModuleInit() {
         await this.$connect();
     }
 
-    async onModuleDestroy() {
-        await this.$disconnect();
+    async enableShutdownHooks(app: INestApplication) {
+        process.on('beforeExit', async () => {
+            await app.close();
+        });
     }
 
-    // Helper to clear tables for testing
-    async cleanDatabase() {
-        if (process.env.NODE_ENV !== 'test') {
-            throw new Error('cleanDatabase can only be run in test environment');
-        }
+    /**
+     * Create a tenant-scoped transaction
+     * Sets the app.current_tenant session variable before executing queries
+     * This is required for RLS policies to work correctly
+     */
+    async $transactionWithTenant<T>(
+        tenantId: string,
+        fn: (prisma: PrismaClient) => Promise<T>
+    ): Promise<T> {
+        return this.$transaction(async (tx) => {
+            // Set the tenant context for RLS
+            await tx.$executeRawUnsafe(`SET app.current_tenant = '${tenantId}'`);
+            return fn(tx as PrismaClient);
+        });
+    }
 
-        // Truncate all tables in correct order (respecting foreign keys)
-        const tablenames = await this.$queryRaw<Array<{ tablename: string }>>`
-      SELECT tablename FROM pg_tables WHERE schemaname='public'
-    `;
-
-        for (const { tablename } of tablenames) {
-            if (tablename !== '_prisma_migrations') {
-                await this.$executeRawUnsafe(`TRUNCATE TABLE "${tablename}" CASCADE;`);
-            }
+    /**
+     * Execute a query with tenant context (for individual queries)
+     * Use this when not in a transaction
+     */
+    async withTenantContext<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
+        // Set tenant context
+        await this.$executeRawUnsafe(`SET app.current_tenant = '${tenantId}'`);
+        try {
+            return await fn();
+        } finally {
+            // Reset tenant context
+            await this.$executeRawUnsafe(`RESET app.current_tenant`);
         }
     }
 }
