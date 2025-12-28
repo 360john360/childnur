@@ -49,6 +49,11 @@ export class ChildrenController {
         return this.childrenService.findByRoom(roomId, req.user.tenantId);
     }
 
+    @Get('guardians')
+    async getGuardians(@Request() req: any) {
+        return this.childrenService.getGuardians(req.user.tenantId);
+    }
+
     @Get(':id')
     async findOne(@Request() req: any, @Param('id') id: string) {
         return this.childrenService.findOne(id, req.user.tenantId);

@@ -6,6 +6,7 @@ import { ChildrenModule } from './children/children.module';
 import { DailyLogsModule } from './daily-logs/daily-logs.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { ParentModule } from './parent/parent.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { ParentModule } from './parent/parent.module';
     DailyLogsModule,
     AttendanceModule,
     ParentModule,
+    BillingModule,
   ],
 })
 export class AppModule { }
-

@@ -138,4 +138,17 @@ export class ChildrenService {
             },
         });
     }
+
+    async getGuardians(tenantId: string) {
+        return this.prisma.guardian.findMany({
+            where: { tenantId, isBillPayer: true },
+            orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+            },
+        });
+    }
 }

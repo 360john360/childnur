@@ -873,6 +873,7 @@ model Invoice {
   
   // Payment tracking
   status        InvoiceStatus @default(DRAFT)
+  paidPence     Int          @default(0) @map("paid_pence") // Total amount paid so far
   paidAt        DateTime?    @map("paid_at")
   paymentMethod String?      @map("payment_method") @db.VarChar(50)
   paymentRef    String?      @map("payment_ref") @db.VarChar(100)
@@ -894,6 +895,7 @@ model Invoice {
   tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   guardian      Guardian     @relation(fields: [guardianId], references: [id])
   items         InvoiceItem[]
+  payments      Payment[]
   
   @@index([tenantId])
   @@index([guardianId])
@@ -945,6 +947,46 @@ enum InvoiceItemType {
   MEALS
   DISCOUNT
   FUNDING_REDUCTION
+  OTHER
+}
+
+/// Payment record for an invoice (supports partial payments)
+model Payment {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  invoiceId   String        @map("invoice_id") @db.Uuid
+  
+  // Payment details
+  amountPence Int           @map("amount_pence")
+  method      PaymentMethod
+  reference   String?       @db.VarChar(100) // e.g., bank reference, TFC code
+  
+  // When received
+  receivedAt  DateTime      @map("received_at") @db.Timestamptz
+  
+  // Notes
+  notes       String?
+  
+  // Who recorded it
+  recordedById String?      @map("recorded_by_id") @db.Uuid
+  
+  createdAt   DateTime      @default(now()) @map("created_at")
+  
+  // Relations
+  invoice     Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  @@index([invoiceId])
+  @@index([tenantId])
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  TAX_FREE_CHILDCARE
+  CHILDCARE_VOUCHER
+  DIRECT_DEBIT
   OTHER
 }
 
