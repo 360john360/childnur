@@ -177,11 +177,16 @@ export class BillingService {
                 guardian: {
                     select: {
                         id: true,
+                        title: true,
                         firstName: true,
                         lastName: true,
                         email: true,
                         phone: true,
                         mobile: true,
+                        addressLine1: true,
+                        addressLine2: true,
+                        city: true,
+                        postcode: true,
                     },
                 },
                 items: {

@@ -75,12 +75,15 @@ export default function InvoicesListPage() {
 
             {/* Filters */}
             <div className="flex gap-4">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select
+                    value={statusFilter || "ALL"}
+                    onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}
+                >
                     <SelectTrigger className="w-48">
                         <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">All Statuses</SelectItem>
+                        <SelectItem value="ALL">All Statuses</SelectItem>
                         <SelectItem value="DRAFT">Draft</SelectItem>
                         <SelectItem value="SENT">Sent</SelectItem>
                         <SelectItem value="PARTIALLY_PAID">Partially Paid</SelectItem>

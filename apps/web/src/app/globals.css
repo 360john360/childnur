@@ -538,3 +538,79 @@
 .nav-link.active:hover {
   background: var(--primary);
 }
+
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+
+@media print {
+  /* Hide sidebar and navigation */
+  [data-slot="sidebar"],
+  aside,
+  nav,
+  header:not(.print-header),
+  .sidebar,
+  [class*="sidebar"],
+  [class*="Sidebar"] {
+    display: none !important;
+  }
+
+  /* Reset main content to full width */
+  main,
+  [role="main"],
+  .main-content {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Reset body and html */
+  html, body {
+    background: white !important;
+    background-image: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide interactive elements */
+  button:not(.print-show),
+  .print\\:hidden,
+  [class*="print:hidden"] {
+    display: none !important;
+  }
+
+  /* Ensure print content shows */
+  .print\\:block,
+  [class*="print:block"] {
+    display: block !important;
+  }
+
+  /* Remove shadows and borders for cleaner print */
+  .glass,
+  .glass-subtle,
+  .glass-strong {
+    background: white !important;
+    border: 1px solid #eee !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Page breaks */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  .avoid-break {
+    page-break-inside: avoid;
+  }
+
+  /* Reset colors for print */
+  * {
+    color-adjust: exact !important;
+  }
+}

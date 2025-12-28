@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useReactToPrint } from "react-to-print";
 import {
     ArrowLeft,
     FileText,
@@ -16,6 +17,7 @@ import {
     XCircle,
     Plus,
     Printer,
+    MapPin,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,10 +63,29 @@ export default function InvoiceDetailPage() {
     const params = useParams();
     const router = useRouter();
     const invoiceId = params.id as string;
+    const printRef = useRef<HTMLDivElement>(null);
 
     const { data: invoice, isLoading } = useInvoice(invoiceId);
     const recordPayment = useRecordPayment();
     const updateStatus = useUpdateInvoiceStatus();
+
+    // react-to-print hook
+    const handlePrint = useReactToPrint({
+        contentRef: printRef,
+        documentTitle: invoice?.invoiceNumber || "Invoice",
+        pageStyle: `
+            @page {
+                size: A4;
+                margin: 20mm;
+            }
+            @media print {
+                body {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+            }
+        `,
+    });
 
     // Payment form state
     const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -133,13 +154,23 @@ export default function InvoiceDetailPage() {
         }
     };
 
+    // Format guardian address
+    const guardianAddress = [
+        invoice.guardian.addressLine1,
+        invoice.guardian.addressLine2,
+        invoice.guardian.city,
+        invoice.guardian.postcode,
+    ].filter(Boolean).join(", ");
+
+    const guardianPhone = invoice.guardian.mobile || invoice.guardian.phone;
+
     return (
         <div className="p-6 max-w-5xl mx-auto space-y-6">
-            {/* Header */}
+            {/* Header - Actions for the page */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" asChild>
-                        <Link href="/billing/invoices">
+                        <Link href="/billing">
                             <ArrowLeft className="h-5 w-5" />
                         </Link>
                     </Button>
@@ -162,6 +193,10 @@ export default function InvoiceDetailPage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => handlePrint()}>
+                        <Printer className="h-4 w-4 mr-2" />
+                        Print Invoice
+                    </Button>
                     {invoice.status === "DRAFT" && (
                         <Button
                             variant="outline"
@@ -256,213 +291,347 @@ export default function InvoiceDetailPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Content */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* Line Items */}
-                    <Card className="glass">
-                        <CardHeader>
-                            <CardTitle className="text-lg">Line Items</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="divide-y divide-border">
-                                {invoice.items?.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="py-3 flex justify-between items-center"
-                                    >
-                                        <div>
-                                            <p className="font-medium">{item.description}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {item.quantity} × {formatPence(item.unitPricePence)}
-                                                {item.child && (
-                                                    <span className="ml-2">
-                                                        • {item.child.firstName} {item.child.lastName}
-                                                    </span>
-                                                )}
-                                            </p>
-                                        </div>
-                                        <p className="font-medium">
-                                            {formatPence(item.totalPence)}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
+            {/* ===== PRINTABLE INVOICE COMPONENT ===== */}
+            <div
+                ref={printRef}
+                style={{
+                    backgroundColor: "white",
+                    color: "black",
+                    fontFamily: "Arial, Helvetica, sans-serif",
+                }}
+            >
+                {/* Invoice Header */}
+                <div style={{
+                    padding: "32px",
+                    borderBottom: "1px solid #e5e7eb",
+                    background: "linear-gradient(135deg, #f3f0ff 0%, #e8f4f8 100%)",
+                }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div>
+                            <h1 style={{
+                                fontSize: "32px",
+                                fontWeight: "bold",
+                                color: "#7c3aed",
+                                margin: 0,
+                            }}>
+                                INVOICE
+                            </h1>
+                            <p style={{
+                                fontSize: "20px",
+                                fontFamily: "monospace",
+                                marginTop: "4px",
+                                color: "#374151",
+                            }}>
+                                {invoice.invoiceNumber}
+                            </p>
+                        </div>
+                        <div style={{
+                            padding: "6px 16px",
+                            borderRadius: "20px",
+                            backgroundColor: invoice.status === "PAID" ? "#dcfce7" : "#f3f4f6",
+                            color: invoice.status === "PAID" ? "#166534" : "#374151",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                        }}>
+                            {invoice.status.replace("_", " ")}
+                        </div>
+                    </div>
+                </div>
 
-                            {/* Totals */}
-                            <div className="border-t mt-4 pt-4 space-y-2">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Subtotal</span>
-                                    <span>{formatPence(invoice.subtotalPence)}</span>
+                {/* Bill To & Invoice Details */}
+                <div style={{
+                    padding: "32px",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "32px",
+                    borderBottom: "1px solid #e5e7eb",
+                }}>
+                    {/* Bill To */}
+                    <div>
+                        <h3 style={{
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            color: "#6b7280",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            marginBottom: "12px",
+                        }}>
+                            Bill To
+                        </h3>
+                        <div style={{ lineHeight: "1.6" }}>
+                            <p style={{ fontWeight: "600", fontSize: "16px", margin: "0 0 4px 0" }}>
+                                {invoice.guardian.title && `${invoice.guardian.title} `}
+                                {invoice.guardian.firstName} {invoice.guardian.lastName}
+                            </p>
+                            {guardianAddress && (
+                                <p style={{ color: "#6b7280", margin: "0 0 4px 0" }}>{guardianAddress}</p>
+                            )}
+                            <p style={{ color: "#6b7280", margin: "0 0 4px 0" }}>{invoice.guardian.email}</p>
+                            {guardianPhone && (
+                                <p style={{ color: "#6b7280", margin: 0 }}>{guardianPhone}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Invoice Details */}
+                    <div style={{ textAlign: "right" }}>
+                        <h3 style={{
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            color: "#6b7280",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            marginBottom: "12px",
+                        }}>
+                            Invoice Details
+                        </h3>
+                        <table style={{ marginLeft: "auto", fontSize: "14px" }}>
+                            <tbody>
+                                <tr>
+                                    <td style={{ paddingRight: "16px", color: "#6b7280", paddingBottom: "4px" }}>Invoice Date:</td>
+                                    <td style={{ fontWeight: "500" }}>
+                                        {new Date(invoice.issueDate).toLocaleDateString("en-GB", {
+                                            day: "numeric",
+                                            month: "long",
+                                            year: "numeric",
+                                        })}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style={{ paddingRight: "16px", color: "#6b7280", paddingBottom: "4px" }}>Due Date:</td>
+                                    <td style={{
+                                        fontWeight: "500",
+                                        color: new Date(invoice.dueDate) < new Date() && invoice.status !== "PAID"
+                                            ? "#dc2626"
+                                            : "inherit"
+                                    }}>
+                                        {new Date(invoice.dueDate).toLocaleDateString("en-GB", {
+                                            day: "numeric",
+                                            month: "long",
+                                            year: "numeric",
+                                        })}
+                                    </td>
+                                </tr>
+                                {invoice.paidAt && (
+                                    <tr>
+                                        <td style={{ paddingRight: "16px", color: "#6b7280" }}>Paid Date:</td>
+                                        <td style={{ fontWeight: "500", color: "#16a34a" }}>
+                                            {new Date(invoice.paidAt).toLocaleDateString("en-GB", {
+                                                day: "numeric",
+                                                month: "long",
+                                                year: "numeric",
+                                            })}
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Line Items Table */}
+                <div style={{ padding: "32px" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead>
+                            <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
+                                <th style={{
+                                    textAlign: "left",
+                                    padding: "12px 0",
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    color: "#6b7280",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                }}>
+                                    Description
+                                </th>
+                                <th style={{
+                                    textAlign: "right",
+                                    padding: "12px 0",
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    color: "#6b7280",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                    width: "80px",
+                                }}>
+                                    Qty
+                                </th>
+                                <th style={{
+                                    textAlign: "right",
+                                    padding: "12px 0",
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    color: "#6b7280",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                    width: "120px",
+                                }}>
+                                    Unit Price
+                                </th>
+                                <th style={{
+                                    textAlign: "right",
+                                    padding: "12px 0",
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    color: "#6b7280",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                    width: "120px",
+                                }}>
+                                    Amount
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {invoice.items?.map((item, index) => (
+                                <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                                    <td style={{ padding: "16px 0" }}>
+                                        <p style={{ fontWeight: "500", margin: 0 }}>{item.description}</p>
+                                        {item.child && (
+                                            <p style={{ fontSize: "14px", color: "#6b7280", margin: "4px 0 0 0" }}>
+                                                {item.child.firstName} {item.child.lastName}
+                                            </p>
+                                        )}
+                                    </td>
+                                    <td style={{ textAlign: "right", padding: "16px 0" }}>{item.quantity}</td>
+                                    <td style={{ textAlign: "right", padding: "16px 0" }}>{formatPence(item.unitPricePence)}</td>
+                                    <td style={{ textAlign: "right", padding: "16px 0", fontWeight: "500" }}>
+                                        {formatPence(item.totalPence)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    {/* Totals */}
+                    <div style={{ marginTop: "32px", display: "flex", justifyContent: "flex-end" }}>
+                        <div style={{ width: "280px" }}>
+                            <div style={{ fontSize: "14px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
+                                    <span style={{ color: "#6b7280" }}>Subtotal</span>
+                                    <span style={{ fontWeight: "500" }}>{formatPence(invoice.subtotalPence)}</span>
                                 </div>
                                 {invoice.fundingPence > 0 && (
-                                    <div className="flex justify-between text-sm text-green-500">
-                                        <span>Funding</span>
+                                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", color: "#16a34a" }}>
+                                        <span>Funding Deduction</span>
                                         <span>-{formatPence(invoice.fundingPence)}</span>
                                     </div>
                                 )}
                                 {invoice.discountPence > 0 && (
-                                    <div className="flex justify-between text-sm text-green-500">
+                                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", color: "#16a34a" }}>
                                         <span>Discount</span>
                                         <span>-{formatPence(invoice.discountPence)}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                                <div style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    padding: "12px 0",
+                                    borderTop: "2px solid #e5e7eb",
+                                    borderBottom: "2px solid #e5e7eb",
+                                    fontSize: "18px",
+                                    fontWeight: "bold",
+                                }}>
                                     <span>Total</span>
                                     <span>{formatPence(invoice.totalPence)}</span>
                                 </div>
                                 {invoice.paidPence > 0 && (
                                     <>
-                                        <div className="flex justify-between text-sm text-green-500">
-                                            <span>Paid</span>
+                                        <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", color: "#16a34a" }}>
+                                            <span>Amount Paid</span>
                                             <span>-{formatPence(invoice.paidPence)}</span>
                                         </div>
-                                        <div className="flex justify-between font-bold">
-                                            <span>Outstanding</span>
-                                            <span>{formatPence(outstandingPence)}</span>
+                                        <div style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            padding: "12px 0",
+                                            borderTop: "1px solid #e5e7eb",
+                                            fontSize: "18px",
+                                            fontWeight: "bold",
+                                        }}>
+                                            <span>Balance Due</span>
+                                            <span style={{ color: outstandingPence > 0 ? "#dc2626" : "#16a34a" }}>
+                                                {formatPence(outstandingPence)}
+                                            </span>
                                         </div>
                                     </>
                                 )}
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Payment History */}
-                    {invoice.payments && invoice.payments.length > 0 && (
-                        <Card className="glass">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Payment History</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-3">
-                                    {invoice.payments.map((payment) => (
-                                        <div
-                                            key={payment.id}
-                                            className="flex items-center justify-between p-3 rounded-lg border"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                                                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium">
-                                                        {formatPence(payment.amountPence)}
-                                                    </p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {payment.method.replace("_", " ")}
-                                                        {payment.reference && ` • ${payment.reference}`}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right text-sm text-muted-foreground">
-                                                {new Date(payment.receivedAt).toLocaleDateString()}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                        </div>
+                    </div>
 
                     {/* Notes */}
                     {invoice.notes && (
-                        <Card className="glass">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Notes</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-muted-foreground">{invoice.notes}</p>
-                            </CardContent>
-                        </Card>
+                        <div style={{ marginTop: "32px", paddingTop: "24px", borderTop: "1px solid #e5e7eb" }}>
+                            <h3 style={{
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                color: "#6b7280",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                                marginBottom: "8px",
+                            }}>
+                                Notes
+                            </h3>
+                            <p style={{ color: "#6b7280", margin: 0 }}>{invoice.notes}</p>
+                        </div>
                     )}
                 </div>
 
-                {/* Sidebar */}
-                <div className="space-y-6">
-                    {/* Guardian Info */}
-                    <Card className="glass">
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <User className="h-5 w-5" />
-                                Bill To
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div>
-                                <p className="font-medium">
-                                    {invoice.guardian.firstName} {invoice.guardian.lastName}
-                                </p>
-                                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                    <Mail className="h-3 w-3" /> {invoice.guardian.email}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Dates */}
-                    <Card className="glass">
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <Calendar className="h-5 w-5" />
-                                Dates
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Issue Date</span>
-                                <span>
-                                    {new Date(invoice.issueDate).toLocaleDateString()}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Due Date</span>
-                                <span
-                                    className={
-                                        new Date(invoice.dueDate) < new Date() &&
-                                            invoice.status !== "PAID"
-                                            ? "text-red-500 font-medium"
-                                            : ""
-                                    }
-                                >
-                                    {new Date(invoice.dueDate).toLocaleDateString()}
-                                </span>
-                            </div>
-                            {invoice.paidAt && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Paid Date</span>
-                                    <span className="text-green-500">
-                                        {new Date(invoice.paidAt).toLocaleDateString()}
-                                    </span>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Summary */}
-                    <Card className="glass border-primary/20">
-                        <CardContent className="pt-6">
-                            <div className="text-center">
-                                <p className="text-sm text-muted-foreground mb-1">
-                                    {invoice.status === "PAID" ? "Total Paid" : "Outstanding"}
-                                </p>
-                                <p className="text-3xl font-bold">
-                                    {formatPence(
-                                        invoice.status === "PAID"
-                                            ? invoice.totalPence
-                                            : outstandingPence
-                                    )}
-                                </p>
-                                {invoice.status === "PAID" && (
-                                    <div className="flex items-center justify-center gap-1 text-green-500 mt-2">
-                                        <CheckCircle2 className="h-4 w-4" />
-                                        <span className="text-sm">Fully Paid</span>
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
+                {/* Footer */}
+                <div style={{
+                    padding: "32px",
+                    backgroundColor: "#f9fafb",
+                    borderTop: "1px solid #e5e7eb",
+                    textAlign: "center",
+                }}>
+                    <p style={{ fontWeight: "500", margin: "0 0 4px 0", color: "#374151" }}>
+                        Thank you for your payment
+                    </p>
+                    <p style={{ color: "#6b7280", margin: 0, fontSize: "14px" }}>
+                        Please make payment by bank transfer or contact us for other payment options.
+                    </p>
                 </div>
             </div>
+            {/* ===== END PRINTABLE INVOICE ===== */}
+
+            {/* Payment History - NOT included in print */}
+            {invoice.payments && invoice.payments.length > 0 && (
+                <Card className="glass">
+                    <CardHeader>
+                        <CardTitle className="text-lg">Payment History</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-3">
+                            {invoice.payments.map((payment) => (
+                                <div
+                                    key={payment.id}
+                                    className="flex items-center justify-between p-3 rounded-lg border"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium">
+                                                {formatPence(payment.amountPence)}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {payment.method.replace("_", " ")}
+                                                {payment.reference && ` • ${payment.reference}`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right text-sm text-muted-foreground">
+                                        {new Date(payment.receivedAt).toLocaleDateString()}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

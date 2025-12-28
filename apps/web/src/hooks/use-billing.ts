@@ -40,9 +40,16 @@ export interface Invoice {
     notes?: string;
     guardian: {
         id: string;
+        title?: string;
         firstName: string;
         lastName: string;
         email: string;
+        phone?: string;
+        mobile?: string;
+        addressLine1?: string;
+        addressLine2?: string;
+        city?: string;
+        postcode?: string;
     };
     items: InvoiceItem[];
     payments?: Payment[];

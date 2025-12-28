@@ -94,6 +94,7 @@ export default function DashboardLayout({
           fixed lg:static inset-y-0 left-0 z-50
           w-72 glass-strong border-r border-border/30
           transform transition-transform duration-300 ease-in-out
+          print:hidden
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
             >
@@ -203,7 +204,7 @@ export default function DashboardLayout({
             {/* Main content */}
             <div className="flex-1 flex flex-col min-h-screen">
                 {/* Top header */}
-                <header className="glass-subtle border-b border-border/30 sticky top-0 z-30">
+                <header className="glass-subtle border-b border-border/30 sticky top-0 z-30 print:hidden">
                     <div className="flex items-center justify-between px-4 lg:px-8 py-4">
                         {/* Mobile menu button */}
                         <button
