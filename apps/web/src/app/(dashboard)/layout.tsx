@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -56,6 +56,22 @@ export default function DashboardLayout({
 }) {
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [tenantName, setTenantName] = useState<string>("Loading...");
+
+    useEffect(() => {
+        // Read tenant name from stored user data
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                setTenantName(user.tenantName || "My Nursery");
+            } catch {
+                setTenantName("My Nursery");
+            }
+        } else {
+            setTenantName("My Nursery");
+        }
+    }, []);
 
     return (
         <div className="min-h-screen bg-gradient-mesh flex">
@@ -105,7 +121,7 @@ export default function DashboardLayout({
                                 <Button variant="ghost" className="w-full justify-between glass-subtle">
                                     <div className="flex items-center gap-2">
                                         <Building2 className="h-4 w-4 text-primary" />
-                                        <span className="truncate">Sunflower Nursery</span>
+                                        <span className="truncate">{tenantName}</span>
                                     </div>
                                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
                                 </Button>
@@ -115,7 +131,7 @@ export default function DashboardLayout({
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem>
                                     <Building2 className="mr-2 h-4 w-4" />
-                                    Sunflower Nursery
+                                    {tenantName}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem>
                                     <Building2 className="mr-2 h-4 w-4" />

@@ -50,7 +50,23 @@ export default function ParentLayout({
     const router = useRouter();
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [tenantName, setTenantName] = useState<string>("My Nursery");
     const { data: myChildren, isLoading } = useMyChildren();
+
+    // Read tenant name from stored user data
+    useEffect(() => {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                if (user.tenantName) {
+                    setTenantName(user.tenantName);
+                }
+            } catch {
+                // Ignore parse errors
+            }
+        }
+    }, []);
 
     // Auto-select first child
     useEffect(() => {
@@ -62,7 +78,7 @@ export default function ParentLayout({
     const selectedChild = myChildren?.find((c) => c.id === selectedChildId);
 
     const handleLogout = () => {
-        localStorage.removeItem("token");
+        localStorage.removeItem("accessToken");
         router.push("/auth/login");
     };
 
@@ -194,7 +210,7 @@ export default function ParentLayout({
                             </div>
                             <div>
                                 <h1 className="font-bold text-lg">Parent Portal</h1>
-                                <p className="text-xs text-muted-foreground">Sunflower Nursery</p>
+                                <p className="text-xs text-muted-foreground">{tenantName}</p>
                             </div>
                         </div>
 

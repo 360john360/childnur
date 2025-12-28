@@ -33,7 +33,7 @@ function VerifyContent() {
 
                 if (response.ok) {
                     // Store the JWT token
-                    localStorage.setItem("token", data.accessToken);
+                    localStorage.setItem("accessToken", data.accessToken);
 
                     // Store user info if needed
                     if (data.user) {

@@ -136,11 +136,14 @@ export class AuthService {
      * Sends email via MailHog in development
      */
     async sendMagicLink(email: string): Promise<{ message: string; token?: string }> {
-        // Find user with role PARENT
+        // Find user with role PARENT, include tenant for branding
         const user = await this.prisma.user.findFirst({
             where: {
                 email,
                 role: 'PARENT',
+            },
+            include: {
+                tenant: true,
             },
         });
 
@@ -169,21 +172,32 @@ export class AuthService {
 
         // Send email via MailHog (SMTP on localhost:1025)
         try {
+            const smtpHost = process.env.SMTP_HOST || 'localhost';
+            const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 1025;
+
+            console.log(`[EMAIL] Connecting to SMTP: ${smtpHost}:${smtpPort}`);
+
             const transporter = nodemailer.createTransport({
-                host: process.env.SMTP_HOST || 'localhost',
-                port: parseInt(process.env.SMTP_PORT || '1025'),
+                host: smtpHost,
+                port: smtpPort,
                 secure: false,
-                ignoreTLS: true,
-            });
+                tls: {
+                    rejectUnauthorized: false,
+                },
+            } as nodemailer.TransportOptions);
+
+            // Get tenant branding (use tenant name, fallback to platform name)
+            const nurseryName = user.tenant?.name || 'Your Nursery';
+            const fromEmail = process.env.SMTP_FROM || 'noreply@nurseryhub.co.uk';
 
             await transporter.sendMail({
-                from: '"Sunflower Nursery" <noreply@nurseryhub.co.uk>',
+                from: `"${nurseryName}" <${fromEmail}>`,
                 to: email,
-                subject: 'Your Login Link - Sunflower Nursery',
+                subject: `Your Login Link - ${nurseryName}`,
                 text: `Click here to login: ${magicLinkUrl}`,
                 html: `
                     <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-                        <h2 style="color: #8b5cf6;">🌻 Sunflower Nursery</h2>
+                        <h2 style="color: #8b5cf6;">🌻 ${nurseryName}</h2>
                         <p>Hi ${user.firstName},</p>
                         <p>Click the button below to login to the Parent Portal:</p>
                         <p style="margin: 24px 0;">

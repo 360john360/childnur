@@ -79,6 +79,12 @@ class ApiClient {
         });
 
         this.setToken(data.accessToken);
+
+        // Store user data for tenant-aware UI
+        if (typeof window !== 'undefined' && data.user) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+        }
+
         return data;
     }
 
