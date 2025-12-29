@@ -117,7 +117,7 @@ export class AnnouncementsService {
     /**
      * Mark an announcement as read
      */
-    async markAsRead(announcementId: string, userId: string) {
+    async markAsRead(announcementId: string, userId: string, tenantId: string) {
         // Check if already read
         const existing = await this.prisma.announcementRead.findUnique({
             where: {
@@ -131,6 +131,7 @@ export class AnnouncementsService {
 
         return this.prisma.announcementRead.create({
             data: {
+                tenantId,
                 announcementId,
                 userId,
             },

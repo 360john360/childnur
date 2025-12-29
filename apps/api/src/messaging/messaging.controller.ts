@@ -10,10 +10,10 @@ import {
     Req,
 } from '@nestjs/common';
 import { MessagingService } from './messaging.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Permission } from '../common/permissions.enum';
+import { RequirePermissions } from '../common/decorators/permissions.decorator';
 
 @Controller('messaging')
-@UseGuards(JwtAuthGuard)
 export class MessagingController {
     constructor(private messagingService: MessagingService) { }
 
@@ -22,6 +22,7 @@ export class MessagingController {
      * Managers can see ALL conversations in their tenant for coverage
      */
     @Get('conversations')
+    @RequirePermissions(Permission.MESSAGING_READ)
     async getConversations(@Req() req: any) {
         const { tenantId, sub: userId, role } = req.user;
         return this.messagingService.getConversations(tenantId, userId, role);
@@ -31,6 +32,7 @@ export class MessagingController {
      * Get messages in a conversation
      */
     @Get('conversations/:id/messages')
+    @RequirePermissions(Permission.MESSAGING_READ)
     async getMessages(
         @Param('id') conversationId: string,
         @Query('limit') limit?: string,
@@ -47,6 +49,7 @@ export class MessagingController {
      * Start a new conversation or get existing one
      */
     @Post('conversations')
+    @RequirePermissions(Permission.MESSAGING_WRITE)
     async createConversation(
         @Req() req: any,
         @Body() body: { parentUserId?: string; staffUserId?: string; childId?: string },
@@ -77,12 +80,14 @@ export class MessagingController {
      * Send a message (REST fallback if Socket.IO unavailable)
      */
     @Post('conversations/:id/messages')
+    @RequirePermissions(Permission.MESSAGING_WRITE)
     async sendMessage(
         @Req() req: any,
         @Param('id') conversationId: string,
         @Body() body: { content: string; attachmentUrls?: string[] },
     ) {
         return this.messagingService.sendMessage({
+            tenantId: req.user.tenantId,
             conversationId,
             senderId: req.user.sub,
             content: body.content,
@@ -94,6 +99,7 @@ export class MessagingController {
      * Mark messages as read
      */
     @Patch('conversations/:id/read')
+    @RequirePermissions(Permission.MESSAGING_READ)
     async markAsRead(
         @Req() req: any,
         @Param('id') conversationId: string,
@@ -106,6 +112,7 @@ export class MessagingController {
      * Get unread message count
      */
     @Get('unread-count')
+    @RequirePermissions(Permission.MESSAGING_READ)
     async getUnreadCount(@Req() req: any) {
         const { tenantId, sub: userId } = req.user;
         return this.messagingService.getUnreadCount(tenantId, userId);
@@ -115,6 +122,7 @@ export class MessagingController {
      * Update quiet hours settings
      */
     @Patch('quiet-hours')
+    @RequirePermissions(Permission.MESSAGING_WRITE)
     async updateQuietHours(
         @Req() req: any,
         @Body() body: { quietHoursStart?: string; quietHoursEnd?: string },
@@ -133,6 +141,7 @@ export class MessagingController {
      * Get list of parents with their children (for staff to start conversations)
      */
     @Get('parents')
+    @RequirePermissions(Permission.MESSAGING_READ)
     async getParents(@Req() req: any) {
         const { tenantId } = req.user;
         return this.messagingService.getParentsForConversation(tenantId);
@@ -142,6 +151,7 @@ export class MessagingController {
      * Get key person for a child (for parent to start conversations)
      */
     @Get('key-person/:childId')
+    @RequirePermissions(Permission.MESSAGING_READ)
     async getKeyPerson(@Param('childId') childId: string) {
         return this.messagingService.getKeyPersonForChild(childId);
     }

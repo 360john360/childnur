@@ -14,6 +14,9 @@ import { BillingService } from './billing.service';
 import { InvoiceStatus, PaymentMethod } from '@prisma/client';
 import { IsString, IsOptional, IsArray, IsNumber, IsDateString, ValidateNested, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { Permission } from '../common/permissions.enum';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 
 // DTOs
 class InvoiceItemDto {
@@ -82,7 +85,6 @@ class UpdateStatusDto {
 }
 
 @Controller('billing')
-@UseGuards(JwtAuthGuard)
 export class BillingController {
     constructor(private readonly billingService: BillingService) { }
 
@@ -90,6 +92,7 @@ export class BillingController {
      * Get billing dashboard summary
      */
     @Get('summary')
+    @RequirePermissions(Permission.BILLING_READ)
     async getSummary(@Request() req: any) {
         return this.billingService.getBillingSummary(req.user.tenantId);
     }
@@ -98,6 +101,7 @@ export class BillingController {
      * Get all invoices with optional filters
      */
     @Get('invoices')
+    @RequirePermissions(Permission.BILLING_READ)
     async getInvoices(
         @Request() req: any,
         @Query('status') status?: InvoiceStatus,
@@ -119,6 +123,7 @@ export class BillingController {
      * Get single invoice with details
      */
     @Get('invoices/:id')
+    @RequirePermissions(Permission.BILLING_READ)
     async getInvoice(@Request() req: any, @Param('id') id: string) {
         return this.billingService.getInvoice(req.user.tenantId, id);
     }
@@ -127,6 +132,7 @@ export class BillingController {
      * Create a new invoice
      */
     @Post('invoices')
+    @RequirePermissions(Permission.BILLING_WRITE)
     async createInvoice(@Request() req: any, @Body() dto: CreateInvoiceDto) {
         return this.billingService.createInvoice(req.user.tenantId, {
             guardianId: dto.guardianId,
@@ -141,6 +147,7 @@ export class BillingController {
      * Update invoice status
      */
     @Patch('invoices/:id/status')
+    @RequirePermissions(Permission.BILLING_WRITE)
     async updateInvoiceStatus(
         @Request() req: any,
         @Param('id') id: string,
@@ -157,6 +164,7 @@ export class BillingController {
      * Record a payment against an invoice
      */
     @Post('payments')
+    @RequirePermissions(Permission.BILLING_WRITE)
     async recordPayment(@Request() req: any, @Body() dto: RecordPaymentDto) {
         return this.billingService.recordPayment(
             req.user.tenantId,
@@ -176,6 +184,7 @@ export class BillingController {
      * Get outstanding debts by guardian
      */
     @Get('outstanding')
+    @RequirePermissions(Permission.BILLING_READ)
     async getOutstanding(@Request() req: any) {
         return this.billingService.getOutstandingByGuardian(req.user.tenantId);
     }
@@ -184,6 +193,7 @@ export class BillingController {
      * Mark overdue invoices (can be called by a cron job)
      */
     @Post('mark-overdue')
+    @RequirePermissions(Permission.BILLING_WRITE)
     async markOverdue(@Request() req: any) {
         return this.billingService.markOverdueInvoices(req.user.tenantId);
     }

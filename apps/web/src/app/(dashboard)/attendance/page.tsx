@@ -4,20 +4,10 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Users,
-    UserCheck,
-    UserX,
-    Clock,
     LogIn,
-    LogOut,
-    CheckCircle2,
-    XCircle,
-    AlertTriangle,
     Loader2,
-    Check,
-    Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,22 +39,10 @@ import {
 import { useRooms } from "@/hooks/use-children";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { Check, Loader2 as Spinner } from "lucide-react";
+import { AttendanceCard, AttendanceStatsBar } from "@/features/attendance/components";
 
-const statusColors: Record<string, string> = {
-    EXPECTED: "bg-amber-500/10 text-amber-600 border-amber-300",
-    CHECKED_IN: "bg-green-500/10 text-green-600 border-green-300",
-    CHECKED_OUT: "bg-blue-500/10 text-blue-600 border-blue-300",
-    ABSENT_NOTIFIED: "bg-gray-500/10 text-gray-600 border-gray-300",
-    ABSENT_UNNOTIFIED: "bg-red-500/10 text-red-600 border-red-300",
-};
-
-const statusLabels: Record<string, string> = {
-    EXPECTED: "Expected",
-    CHECKED_IN: "Present",
-    CHECKED_OUT: "Departed",
-    ABSENT_NOTIFIED: "Absent",
-    ABSENT_UNNOTIFIED: "Absent (No Notice)",
-};
+// Status constants moved to @/features/attendance/components/AttendanceCard.tsx
 
 export default function AttendancePage() {
     const [selectedRoom, setSelectedRoom] = useState<string>("all");
@@ -211,55 +189,7 @@ export default function AttendancePage() {
             </div>
 
             {/* Stats Bar */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="stat-card">
-                    <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500">
-                            <UserCheck className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold">{stats?.present || 0}</p>
-                            <p className="text-xs text-muted-foreground">Present</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="stat-card">
-                    <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500">
-                            <Clock className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold">{stats?.expected || 0}</p>
-                            <p className="text-xs text-muted-foreground">Expected</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="stat-card">
-                    <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500">
-                            <LogOut className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold">{stats?.departed || 0}</p>
-                            <p className="text-xs text-muted-foreground">Departed</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="stat-card">
-                    <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-xl bg-gradient-to-br from-gray-500 to-slate-500">
-                            <UserX className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold">{stats?.absent || 0}</p>
-                            <p className="text-xs text-muted-foreground">Absent</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <AttendanceStatsBar stats={stats} />
 
             {/* Room Filter Tabs */}
             <div className="flex flex-wrap gap-2">
@@ -333,169 +263,29 @@ export default function AttendancePage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {attendance?.map((child: any, i: number) => {
-                        const status = getStatus(child);
-                        const isSelected = selectedChildren.includes(child.id);
-                        const canCheckIn = status === "EXPECTED";
-                        const canCheckOut = status === "CHECKED_IN";
-
-                        return (
-                            <motion.div
-                                key={child.id}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: i * 0.02 }}
-                                className={`stat-card cursor-pointer transition-all ${isSelected ? "ring-2 ring-primary" : ""
-                                    }`}
-                            >
-                                <div className="flex items-start gap-3">
-                                    {/* Selection Checkbox */}
-                                    {canCheckIn && (
-                                        <Checkbox
-                                            checked={isSelected}
-                                            onCheckedChange={() => toggleChild(child.id)}
-                                            className="mt-1"
-                                        />
-                                    )}
-
-                                    {/* Avatar */}
-                                    <div className="relative shrink-0">
-                                        {child.profilePhotoUrl ? (
-                                            <img
-                                                src={child.profilePhotoUrl}
-                                                alt={child.firstName}
-                                                className="w-14 h-14 rounded-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-white text-lg font-bold">
-                                                {child.firstName[0]}
-                                                {child.lastName[0]}
-                                            </div>
-                                        )}
-                                        {child.hasAllergy && (
-                                            <div className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-1">
-                                                <AlertTriangle className="h-3 w-3" />
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Info */}
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="font-semibold truncate">
-                                            {child.firstName} {child.lastName}
-                                        </h3>
-                                        <p className="text-xs text-muted-foreground">
-                                            {child.room?.name}
-                                        </p>
-                                        <Badge
-                                            variant="outline"
-                                            className={`mt-1 ${statusColors[status]}`}
-                                        >
-                                            {statusLabels[status]}
-                                        </Badge>
-
-                                        {/* Time info */}
-                                        {child.attendance?.checkInTime && (
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                In: {format(new Date(child.attendance.checkInTime), "HH:mm")}
-                                                {child.attendance.checkOutTime && (
-                                                    <> • Out: {format(new Date(child.attendance.checkOutTime), "HH:mm")}</>
-                                                )}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex gap-2 mt-3">
-                                    {canCheckIn && (
-                                        <>
-                                            <Button
-                                                size="sm"
-                                                className="flex-1 btn-premium"
-                                                onClick={() => handleCheckIn(child.id)}
-                                                disabled={checkIn.isPending}
-                                            >
-                                                <LogIn className="h-4 w-4 mr-1" />
-                                                Check In
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => handleMarkAbsent(child.id)}
-                                                disabled={markAbsent.isPending}
-                                            >
-                                                <XCircle className="h-4 w-4" />
-                                            </Button>
-                                        </>
-                                    )}
-
-                                    {status === "CHECKED_IN" && (
-                                        <div className="flex gap-2 w-full">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="flex-1 border-dashed text-muted-foreground hover:text-foreground"
-                                                onClick={() => handleUndoCheckIn(child.id)}
-                                                disabled={undoCheckIn.isPending}
-                                            >
-                                                <Undo2 className="h-4 w-4 mr-1" />
-                                                Undo
-                                            </Button>
-                                            {canCheckOut && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    className="flex-[2]"
-                                                    onClick={() =>
-                                                        openCheckOutModal(child.id, `${child.firstName} ${child.lastName}`)
-                                                    }
-                                                    disabled={checkOut.isPending}
-                                                >
-                                                    <LogOut className="h-4 w-4 mr-1" />
-                                                    Check Out
-                                                </Button>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {(status === "ABSENT_NOTIFIED" || status === "ABSENT_UNNOTIFIED") && (
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="flex-1 border-dashed text-muted-foreground hover:text-foreground"
-                                            onClick={() => handleUndoAbsence(child.id)}
-                                            disabled={undoAbsence.isPending}
-                                        >
-                                            <Undo2 className="h-4 w-4 mr-1" />
-                                            Undo Absence
-                                        </Button>
-                                    )}
-
-                                    {status === "CHECKED_OUT" && (
-                                        <div className="flex flex-col gap-2 w-full">
-                                            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                <span>
-                                                    Collected by {child.attendance?.collectedBy || "—"}
-                                                </span>
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="w-full text-xs text-muted-foreground hover:text-destructive"
-                                                onClick={() => handleUndoCheckOut(child.id)}
-                                                disabled={undoCheckOut.isPending}
-                                            >
-                                                <Undo2 className="h-3 w-3 mr-1" />
-                                                Mistake? Undo Check Out
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            </motion.div>
-                        );
-                    })}
+                    {attendance?.map((child: any, i: number) => (
+                        <AttendanceCard
+                            key={child.id}
+                            child={child}
+                            index={i}
+                            isSelected={selectedChildren.includes(child.id)}
+                            onToggleSelect={toggleChild}
+                            onCheckIn={handleCheckIn}
+                            onCheckOut={openCheckOutModal}
+                            onMarkAbsent={handleMarkAbsent}
+                            onUndoCheckIn={handleUndoCheckIn}
+                            onUndoCheckOut={handleUndoCheckOut}
+                            onUndoAbsence={handleUndoAbsence}
+                            isPending={{
+                                checkIn: checkIn.isPending,
+                                checkOut: checkOut.isPending,
+                                markAbsent: markAbsent.isPending,
+                                undoCheckIn: undoCheckIn.isPending,
+                                undoCheckOut: undoCheckOut.isPending,
+                                undoAbsence: undoAbsence.isPending,
+                            }}
+                        />
+                    ))}
                 </div>
             )}
 

@@ -61,6 +61,7 @@ export class BillingService {
             }
 
             return {
+                tenantId,
                 childId: item.childId,
                 description: item.description,
                 quantity: item.quantity,

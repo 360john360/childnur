@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
 import {
     ClipboardCheck,
     Filter,
@@ -12,7 +11,6 @@ import {
     Moon,
     Camera,
     Loader2,
-    AlertTriangle,
     X,
     Calendar as CalendarIcon,
     ChevronLeft,
@@ -55,22 +53,9 @@ import {
     addDays,
 } from "date-fns";
 import { QuickLogForm } from "./quick-log-form";
+import { DateSidebar, LogCard, logTypeIcons, logTypeColors } from "@/features/daily-logs/components";
 
-const logTypeIcons: Record<string, any> = {
-    NAPPY: Baby,
-    MEAL: Utensils,
-    SLEEP: Moon,
-    ACTIVITY: Camera,
-    NOTE: ClipboardCheck,
-};
-
-const logTypeColors: Record<string, string> = {
-    NAPPY: "bg-blue-500/10 text-blue-600 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400",
-    MEAL: "bg-green-500/10 text-green-600 border-green-200 dark:bg-green-500/20 dark:text-green-400",
-    SLEEP: "bg-purple-500/10 text-purple-600 border-purple-200 dark:bg-purple-500/20 dark:text-purple-400",
-    ACTIVITY: "bg-orange-500/10 text-orange-600 border-orange-200 dark:bg-orange-500/20 dark:text-orange-400",
-    NOTE: "bg-gray-500/10 text-gray-600 border-gray-200 dark:bg-gray-500/20 dark:text-gray-400",
-};
+// Constants moved to @/features/daily-logs/components/LogCard.tsx
 
 const ITEMS_PER_SECTION = 10;
 
@@ -190,101 +175,14 @@ export default function DailyLogsPage() {
     return (
         <div className="flex gap-6">
             {/* Left Sidebar - Date & Stats */}
-            <div className="hidden lg:block w-64 shrink-0">
-                <div className="stat-card sticky top-6">
-                    {/* Full Date Display */}
-                    <div className="text-center mb-6">
-                        <div className="text-5xl font-bold text-primary">
-                            {format(selectedDate, "d")}
-                        </div>
-                        <div className="text-lg font-medium mt-1">
-                            {format(selectedDate, "MMMM yyyy")}
-                        </div>
-                        <div className="text-muted-foreground">
-                            {getDayName()}
-                        </div>
-                    </div>
-
-                    {/* Date Navigation */}
-                    <div className="flex items-center justify-between mb-4">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                    <CalendarIcon className="h-4 w-4" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="center">
-                                <Calendar
-                                    mode="single"
-                                    selected={selectedDate}
-                                    onSelect={(date) => date && setSelectedDate(date)}
-                                    disabled={(date) => date > new Date()}
-                                    initialFocus
-                                />
-                            </PopoverContent>
-                        </Popover>
-
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-                            disabled={isToday(selectedDate)}
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                    </div>
-
-                    {/* Quick date buttons */}
-                    <div className="space-y-2">
-                        <Button
-                            variant={isToday(selectedDate) ? "default" : "ghost"}
-                            size="sm"
-                            className="w-full justify-start"
-                            onClick={() => setSelectedDate(new Date())}
-                        >
-                            Today
-                        </Button>
-                        <Button
-                            variant={isYesterday(selectedDate) ? "default" : "ghost"}
-                            size="sm"
-                            className="w-full justify-start"
-                            onClick={() => setSelectedDate(subDays(new Date(), 1))}
-                        >
-                            Yesterday
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full justify-start"
-                            onClick={() => setSelectedDate(subDays(new Date(), 7))}
-                        >
-                            Last Week
-                        </Button>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="mt-6 pt-6 border-t space-y-3">
-                        <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Total entries</span>
-                            <span className="font-medium">{filteredLogs.length}</span>
-                        </div>
-                        {Object.entries(groupedLogs).map(([period, periodLogs]: [string, any]) => (
-                            <div key={period} className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">{period}</span>
-                                <span>{periodLogs.length}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
+            <DateSidebar
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+                totalEntries={filteredLogs.length}
+                groupedStats={Object.fromEntries(
+                    Object.entries(groupedLogs).map(([period, logs]: [string, any]) => [period, logs.length])
+                )}
+            />
 
             {/* Main Content */}
             <div className="flex-1 space-y-6">
@@ -492,50 +390,14 @@ export default function DailyLogsPage() {
                                             >
                                                 <ScrollArea className={periodLogs.length > 5 ? "h-[400px]" : ""}>
                                                     <div className="space-y-3 pt-4">
-                                                        {displayedLogs.map((log: any, i: number) => {
-                                                            const Icon = logTypeIcons[log.type] || ClipboardCheck;
-                                                            const colorClass = logTypeColors[log.type] || logTypeColors.NOTE;
-
-                                                            return (
-                                                                <motion.div
-                                                                    key={log.id}
-                                                                    initial={{ opacity: 0, x: -20 }}
-                                                                    animate={{ opacity: 1, x: 0 }}
-                                                                    transition={{ delay: i * 0.02 }}
-                                                                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                                                                >
-                                                                    <div className={`p-2 rounded-lg ${colorClass} border shrink-0`}>
-                                                                        <Icon className="h-4 w-4" />
-                                                                    </div>
-
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                                            <Link href={`/children/${log.childId}`} className="hover:underline">
-                                                                                <span className="font-medium text-sm">
-                                                                                    {log.child?.firstName} {log.child?.lastName}
-                                                                                </span>
-                                                                            </Link>
-                                                                            {log.child?.hasAllergy && (
-                                                                                <Badge variant="destructive" className="text-xs px-1">
-                                                                                    <AlertTriangle className="h-3 w-3" />
-                                                                                </Badge>
-                                                                            )}
-                                                                            <Badge variant="secondary" className="text-xs">
-                                                                                {log.child?.room?.name}
-                                                                            </Badge>
-                                                                        </div>
-
-                                                                        <p className="text-sm text-muted-foreground mt-0.5">
-                                                                            {log.notes || formatLogData(log.type, log.data)}
-                                                                        </p>
-                                                                    </div>
-
-                                                                    <div className="text-xs text-muted-foreground shrink-0">
-                                                                        {format(new Date(log.timestamp), "HH:mm")}
-                                                                    </div>
-                                                                </motion.div>
-                                                            );
-                                                        })}
+                                                        {displayedLogs.map((log: any, i: number) => (
+                                                            <LogCard
+                                                                key={log.id}
+                                                                log={log}
+                                                                index={i}
+                                                                formatLogData={formatLogData}
+                                                            />
+                                                        ))}
                                                     </div>
                                                 </ScrollArea>
 

@@ -8,9 +8,13 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ParentService } from './parent.service';
+import { ChildOwnerGuard } from '../common/guards/child-owner.guard';
+import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { Permission } from '../common/permissions.enum';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 
 @Controller('parent')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ParentController {
     constructor(private parentService: ParentService) { }
 
@@ -19,6 +23,7 @@ export class ParentController {
      * Get all children linked to the authenticated parent
      */
     @Get('children')
+    @RequirePermissions(Permission.CHILD_READ)
     async getMyChildren(@Request() req: any) {
         return this.parentService.getMyChildren(req.user.sub);
     }
@@ -28,6 +33,8 @@ export class ParentController {
      * Get a child's profile (with authorization)
      */
     @Get('children/:childId/profile')
+    @UseGuards(ChildOwnerGuard)
+    @RequirePermissions(Permission.CHILD_READ)
     async getChildProfile(
         @Request() req: any,
         @Param('childId') childId: string,
@@ -40,6 +47,8 @@ export class ParentController {
      * Get a child's daily timeline
      */
     @Get('children/:childId/timeline')
+    @UseGuards(ChildOwnerGuard)
+    @RequirePermissions(Permission.DAILYLOG_READ)
     async getChildTimeline(
         @Request() req: any,
         @Param('childId') childId: string,

@@ -33,9 +33,12 @@ export class AuthService {
     ) { }
 
     async validateUser(email: string, password: string): Promise<any> {
-        const user = await this.prisma.user.findFirst({
-            where: { email },
-            include: { tenant: true },
+        // Use runUnsafe to bypass RLS because we don't know the tenant yet
+        const user = await this.prisma.runUnsafe(async (tx) => {
+            return tx.user.findFirst({
+                where: { email },
+                include: { tenant: true },
+            });
         });
 
         if (!user || !user.passwordHash) {
@@ -74,6 +77,8 @@ export class AuthService {
             role: user.role,
             permissions: user.permissions as string[],
         };
+        console.log(`[AuthService] Generating Token for ${user.email}, TenantId: ${user.tenantId}`);
+        console.log(`[AuthService] Payload:`, JSON.stringify(payload));
 
         return {
             accessToken: this.jwtService.sign(payload),
@@ -137,14 +142,17 @@ export class AuthService {
      */
     async sendMagicLink(email: string): Promise<{ message: string; token?: string }> {
         // Find user with role PARENT, include tenant for branding
-        const user = await this.prisma.user.findFirst({
-            where: {
-                email,
-                role: 'PARENT',
-            },
-            include: {
-                tenant: true,
-            },
+        // Use runUnsafe because parent might not be logged in yet
+        const user = await this.prisma.runUnsafe(async (tx) => {
+            return tx.user.findFirst({
+                where: {
+                    email,
+                    role: 'PARENT',
+                },
+                include: {
+                    tenant: true,
+                },
+            });
         });
 
         if (!user) {
@@ -229,14 +237,16 @@ export class AuthService {
      * Verify a magic link token and return JWT
      */
     async verifyMagicLink(token: string): Promise<AuthTokens> {
-        const user = await this.prisma.user.findFirst({
-            where: {
-                magicLinkToken: token,
-                magicLinkExpiry: {
-                    gt: new Date(), // Token not expired
+        const user = await this.prisma.runUnsafe(async (tx) => {
+            return tx.user.findFirst({
+                where: {
+                    magicLinkToken: token,
+                    magicLinkExpiry: {
+                        gt: new Date(), // Token not expired
+                    },
                 },
-            },
-            include: { tenant: true },
+                include: { tenant: true },
+            });
         });
 
         if (!user) {

@@ -131,7 +131,7 @@ export class AttendanceService {
     /**
      * Check in a child with exact timestamp
      */
-    async checkIn(childId: string, staffId: string) {
+    async checkIn(tenantId: string, childId: string, staffId: string) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const now = new Date();
@@ -150,6 +150,7 @@ export class AttendanceService {
                 checkedInBy: staffId,
             },
             create: {
+                tenantId,
                 childId,
                 date: today,
                 status: 'CHECKED_IN',
@@ -200,7 +201,7 @@ export class AttendanceService {
     /**
      * Bulk check-in multiple children
      */
-    async bulkCheckIn(childIds: string[], staffId: string) {
+    async bulkCheckIn(tenantId: string, childIds: string[], staffId: string) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const now = new Date();
@@ -220,6 +221,7 @@ export class AttendanceService {
                         checkedInBy: staffId,
                     },
                     create: {
+                        tenantId,
                         childId,
                         date: today,
                         status: 'CHECKED_IN',
@@ -236,7 +238,7 @@ export class AttendanceService {
     /**
      * Mark a child as absent
      */
-    async markAbsent(childId: string, reason?: string, notified: boolean = true) {
+    async markAbsent(tenantId: string, childId: string, reason?: string, notified: boolean = true) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -256,6 +258,7 @@ export class AttendanceService {
                 absenceReason: reason,
             },
             create: {
+                tenantId,
                 childId,
                 date: today,
                 status,

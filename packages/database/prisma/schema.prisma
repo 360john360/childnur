@@ -37,22 +37,30 @@ model Tenant {
   isActive  Boolean  @default(true) @map("is_active")
   
   // Relations
-  users         User[]
-  children      Child[]
-  rooms         Room[]
-  staff         Staff[]
-  guardians     Guardian[]
-  dailyLogs     DailyLog[]
-  observations  Observation[]
-  accidents     Accident[]
-  safeguarding  SafeguardingLog[]
-  invoices      Invoice[]
-  auditLogs     AuditLog[]
-  consents      ConsentRecord[]
-  medications   MedicationRecord[]
-  newsletters   Newsletter[]
-  conversations Conversation[]
-  announcements Announcement[]
+  users             User[]
+  children          Child[]
+  rooms             Room[]
+  staff             Staff[]
+  guardians         Guardian[]
+  childGuardians    ChildGuardian[]
+  emergencyContacts EmergencyContact[]
+  dailyLogs         DailyLog[]
+  attendanceRecords AttendanceRecord[]
+  observations      Observation[]
+  twoYearChecks     TwoYearCheck[]
+  accidents         Accident[]
+  safeguarding      SafeguardingLog[]
+  invoices          Invoice[]
+  invoiceItems      InvoiceItem[]
+  payments          Payment[]
+  auditLogs         AuditLog[]
+  consents          ConsentRecord[]
+  medications       MedicationRecord[]
+  newsletters       Newsletter[]
+  conversations     Conversation[]
+  messages          Message[]
+  announcements     Announcement[]
+  announcementReads AnnouncementRead[]
   
   @@map("tenants")
 }
@@ -317,6 +325,7 @@ model Guardian {
 /// Junction table for Child-Guardian relationship
 model ChildGuardian {
   id           String  @id @default(uuid()) @db.Uuid
+  tenantId     String  @map("tenant_id") @db.Uuid
   childId      String  @map("child_id") @db.Uuid
   guardianId   String  @map("guardian_id") @db.Uuid
   
@@ -334,16 +343,19 @@ model ChildGuardian {
   createdAt   DateTime @default(now()) @map("created_at")
   
   // Relations
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   child       Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
   guardian    Guardian  @relation(fields: [guardianId], references: [id], onDelete: Cascade)
   
   @@unique([childId, guardianId])
+  @@index([tenantId])
   @@map("child_guardians")
 }
 
 /// Emergency contacts (non-guardian)
 model EmergencyContact {
   id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
   childId     String   @map("child_id") @db.Uuid
   
   name        String   @db.VarChar(200)
@@ -360,8 +372,10 @@ model EmergencyContact {
   updatedAt   DateTime @updatedAt @map("updated_at")
   
   // Relations
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
   
+  @@index([tenantId])
   @@index([childId])
   @@map("emergency_contacts")
 }
@@ -433,6 +447,7 @@ enum LogStatus {
 /// Attendance records (check-in/out)
 model AttendanceRecord {
   id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
   childId     String      @map("child_id") @db.Uuid
   date        DateTime    @db.Date
   
@@ -459,9 +474,11 @@ model AttendanceRecord {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   
   // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   child       Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
   
   @@unique([childId, date])
+  @@index([tenantId])
   @@index([childId])
   @@index([date])
   @@map("attendance_records")
@@ -542,6 +559,7 @@ enum CharacteristicOfLearning {
 /// 2-Year Progress Check (statutory requirement)
 model TwoYearCheck {
   id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
   childId     String      @unique @map("child_id") @db.Uuid
   
   // Assessment date
@@ -573,8 +591,10 @@ model TwoYearCheck {
   updatedAt    DateTime   @updatedAt @map("updated_at")
   
   // Relations
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   child        Child      @relation(fields: [childId], references: [id], onDelete: Cascade)
   
+  @@index([tenantId])
   @@map("two_year_checks")
 }
 
@@ -798,6 +818,7 @@ model Conversation {
 /// Messages between staff and parents
 model Message {
   id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
   conversationId String        @map("conversation_id") @db.Uuid
   senderId       String        @map("sender_id") @db.Uuid
   
@@ -812,9 +833,11 @@ model Message {
   createdAt      DateTime      @default(now()) @map("created_at")
   
   // Relations
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User          @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   
+  @@index([tenantId])
   @@index([conversationId])
   @@index([senderId])
   @@index([createdAt])
@@ -858,14 +881,18 @@ enum AnnouncementPriority {
 /// Tracks which users have read an announcement
 model AnnouncementRead {
   id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
   announcementId String       @map("announcement_id") @db.Uuid
   userId         String       @map("user_id") @db.Uuid
   readAt         DateTime     @default(now()) @map("read_at")
   
+  // Relations
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@unique([announcementId, userId])
+  @@index([tenantId])
   @@index([userId])
   @@map("announcement_reads")
 }
@@ -1009,6 +1036,7 @@ enum InvoiceStatus {
 /// Invoice line items
 model InvoiceItem {
   id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
   invoiceId   String      @map("invoice_id") @db.Uuid
   childId     String?     @map("child_id") @db.Uuid
   
@@ -1023,9 +1051,11 @@ model InvoiceItem {
   createdAt   DateTime    @default(now()) @map("created_at")
   
   // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   invoice     Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   child       Child?      @relation(fields: [childId], references: [id])
   
+  @@index([tenantId])
   @@index([invoiceId])
   @@map("invoice_items")
 }
@@ -1066,6 +1096,7 @@ model Payment {
   createdAt   DateTime      @default(now()) @map("created_at")
   
   // Relations
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   invoice     Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   
   @@index([invoiceId])

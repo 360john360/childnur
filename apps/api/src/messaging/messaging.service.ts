@@ -9,6 +9,7 @@ interface CreateConversationDto {
 }
 
 interface SendMessageDto {
+    tenantId: string;
     conversationId: string;
     senderId: string;
     content: string;
@@ -116,6 +117,7 @@ export class MessagingService {
     async sendMessage(data: SendMessageDto) {
         const message = await this.prisma.message.create({
             data: {
+                tenantId: data.tenantId,
                 conversationId: data.conversationId,
                 senderId: data.senderId,
                 content: data.content,
@@ -124,9 +126,6 @@ export class MessagingService {
             include: {
                 sender: {
                     select: { id: true, firstName: true, lastName: true, avatarUrl: true },
-                },
-                conversation: {
-                    select: { staffUserId: true, parentUserId: true },
                 },
             },
         });

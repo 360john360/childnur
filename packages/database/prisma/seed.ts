@@ -345,6 +345,7 @@ async function main() {
         await prisma.childGuardian.create({
             data: {
                 id: uuid(),
+                tenantId: TENANT_ID,
                 childId: CHILD_IDS[i],
                 guardianId: GUARDIAN_IDS[i],
                 isPrimary: true,
@@ -358,6 +359,7 @@ async function main() {
         await prisma.emergencyContact.create({
             data: {
                 id: uuid(),
+                tenantId: TENANT_ID,
                 childId: CHILD_IDS[i],
                 name: `Grandma ${c.lastName}`,
                 relationship: 'Grandmother',
@@ -483,6 +485,7 @@ async function main() {
         await prisma.attendanceRecord.create({
             data: {
                 id: uuid(),
+                tenantId: TENANT_ID,
                 childId: CHILD_IDS[i],
                 date: todayDate,
                 checkInTime: new Date(todayDate.getTime() + 8 * 3600000 + Math.random() * 3600000), // Between 8-9am

@@ -6,41 +6,11 @@ import Link from "next/link";
 import { useReactToPrint } from "react-to-print";
 import {
     ArrowLeft,
-    FileText,
     Mail,
-    Phone,
-    User,
-    Calendar,
-    CreditCard,
-    CheckCircle2,
-    Clock,
-    XCircle,
-    Plus,
     Printer,
-    MapPin,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
 import {
     useInvoice,
     useRecordPayment,
@@ -48,16 +18,9 @@ import {
     formatPence,
     getStatusColor,
 } from "@/hooks/use-billing";
+import { RecordPaymentDialog, PaymentHistoryCard } from "@/features/billing/components";
 
-const PAYMENT_METHODS = [
-    { value: "CASH", label: "Cash" },
-    { value: "BANK_TRANSFER", label: "Bank Transfer" },
-    { value: "CARD", label: "Card" },
-    { value: "TAX_FREE_CHILDCARE", label: "Tax-Free Childcare" },
-    { value: "CHILDCARE_VOUCHER", label: "Childcare Voucher" },
-    { value: "DIRECT_DEBIT", label: "Direct Debit" },
-    { value: "OTHER", label: "Other" },
-];
+// Payment methods moved to @/features/billing/components/RecordPaymentDialog.tsx
 
 export default function InvoiceDetailPage() {
     const params = useParams();
@@ -87,12 +50,30 @@ export default function InvoiceDetailPage() {
         `,
     });
 
-    // Payment form state
-    const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-    const [paymentAmount, setPaymentAmount] = useState("");
-    const [paymentMethod, setPaymentMethod] = useState("BANK_TRANSFER");
-    const [paymentReference, setPaymentReference] = useState("");
-    const [paymentNotes, setPaymentNotes] = useState("");
+    // Payment handler for the RecordPaymentDialog
+    const handleRecordPayment = async (data: {
+        amountPence: number;
+        method: string;
+        reference?: string;
+        notes?: string;
+    }) => {
+        await recordPayment.mutateAsync({
+            invoiceId,
+            amountPence: data.amountPence,
+            method: data.method,
+            reference: data.reference,
+            receivedAt: new Date().toISOString(),
+            notes: data.notes,
+        });
+    };
+
+    const handleMarkAsSent = async () => {
+        try {
+            await updateStatus.mutateAsync({ id: invoiceId, status: "SENT" });
+        } catch (error) {
+            console.error("Failed to update status:", error);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -119,40 +100,6 @@ export default function InvoiceDetailPage() {
     }
 
     const outstandingPence = invoice.totalPence - invoice.paidPence;
-
-    const handleRecordPayment = async () => {
-        const amountPence = Math.round(parseFloat(paymentAmount) * 100);
-        if (!amountPence || amountPence <= 0) {
-            alert("Please enter a valid amount");
-            return;
-        }
-
-        try {
-            await recordPayment.mutateAsync({
-                invoiceId,
-                amountPence,
-                method: paymentMethod,
-                reference: paymentReference || undefined,
-                receivedAt: new Date().toISOString(),
-                notes: paymentNotes || undefined,
-            });
-            setShowPaymentDialog(false);
-            setPaymentAmount("");
-            setPaymentReference("");
-            setPaymentNotes("");
-        } catch (error) {
-            console.error("Failed to record payment:", error);
-            alert("Failed to record payment");
-        }
-    };
-
-    const handleMarkAsSent = async () => {
-        try {
-            await updateStatus.mutateAsync({ id: invoiceId, status: "SENT" });
-        } catch (error) {
-            console.error("Failed to update status:", error);
-        }
-    };
 
     // Format guardian address
     const guardianAddress = [
@@ -208,85 +155,11 @@ export default function InvoiceDetailPage() {
                         </Button>
                     )}
                     {invoice.status !== "PAID" && invoice.status !== "CANCELLED" && (
-                        <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-                            <DialogTrigger asChild>
-                                <Button>
-                                    <CreditCard className="h-4 w-4 mr-2" />
-                                    Record Payment
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Record Payment</DialogTitle>
-                                    <DialogDescription>
-                                        Outstanding: {formatPence(outstandingPence)}
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                    <div>
-                                        <Label>Amount (£)</Label>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            placeholder={(outstandingPence / 100).toFixed(2)}
-                                            value={paymentAmount}
-                                            onChange={(e) => setPaymentAmount(e.target.value)}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Payment Method</Label>
-                                        <Select
-                                            value={paymentMethod}
-                                            onValueChange={setPaymentMethod}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {PAYMENT_METHODS.map((m) => (
-                                                    <SelectItem key={m.value} value={m.value}>
-                                                        {m.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label>Reference (Optional)</Label>
-                                        <Input
-                                            placeholder="e.g., Bank ref, TFC code"
-                                            value={paymentReference}
-                                            onChange={(e) => setPaymentReference(e.target.value)}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Notes (Optional)</Label>
-                                        <Textarea
-                                            placeholder="Any notes about this payment..."
-                                            value={paymentNotes}
-                                            onChange={(e) => setPaymentNotes(e.target.value)}
-                                            rows={2}
-                                        />
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setShowPaymentDialog(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        onClick={handleRecordPayment}
-                                        disabled={recordPayment.isPending}
-                                    >
-                                        {recordPayment.isPending
-                                            ? "Recording..."
-                                            : "Record Payment"}
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                        <RecordPaymentDialog
+                            outstandingPence={outstandingPence}
+                            onRecordPayment={handleRecordPayment}
+                            isPending={recordPayment.isPending}
+                        />
                     )}
                 </div>
             </div>
@@ -597,41 +470,7 @@ export default function InvoiceDetailPage() {
             {/* ===== END PRINTABLE INVOICE ===== */}
 
             {/* Payment History - NOT included in print */}
-            {invoice.payments && invoice.payments.length > 0 && (
-                <Card className="glass">
-                    <CardHeader>
-                        <CardTitle className="text-lg">Payment History</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
-                            {invoice.payments.map((payment) => (
-                                <div
-                                    key={payment.id}
-                                    className="flex items-center justify-between p-3 rounded-lg border"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                                            <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium">
-                                                {formatPence(payment.amountPence)}
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {payment.method.replace("_", " ")}
-                                                {payment.reference && ` • ${payment.reference}`}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right text-sm text-muted-foreground">
-                                        {new Date(payment.receivedAt).toLocaleDateString()}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+            <PaymentHistoryCard payments={invoice.payments} />
         </div>
     );
 }

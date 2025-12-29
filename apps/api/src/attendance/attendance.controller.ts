@@ -11,8 +11,11 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AttendanceService } from './attendance.service';
 
+import { Permission } from '../common/permissions.enum';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermissions } from '../common/decorators/permissions.decorator';
+
 @Controller('attendance')
-@UseGuards(JwtAuthGuard)
 export class AttendanceController {
     constructor(private attendanceService: AttendanceService) { }
 
@@ -49,7 +52,7 @@ export class AttendanceController {
         @Request() req: any,
         @Body() body: { childId: string },
     ) {
-        return this.attendanceService.checkIn(body.childId, req.user.userId);
+        return this.attendanceService.checkIn(req.user.tenantId, body.childId, req.user.sub);
     }
 
     /**
@@ -68,7 +71,7 @@ export class AttendanceController {
     ) {
         return this.attendanceService.checkOut(
             body.childId,
-            req.user.userId,
+            req.user.sub,
             body.collectedBy,
             body.collectorRelationship,
         );
@@ -79,11 +82,12 @@ export class AttendanceController {
      * Check in multiple children at once
      */
     @Post('bulk-check-in')
+    @RequirePermissions(Permission.ATTENDANCE_WRITE)
     async bulkCheckIn(
         @Request() req: any,
         @Body() body: { childIds: string[] },
     ) {
-        return this.attendanceService.bulkCheckIn(body.childIds, req.user.userId);
+        return this.attendanceService.bulkCheckIn(req.user.tenantId, body.childIds, req.user.sub);
     }
 
     /**
@@ -92,6 +96,7 @@ export class AttendanceController {
      */
     @Post('mark-absent')
     async markAbsent(
+        @Request() req: any,
         @Body()
         body: {
             childId: string;
@@ -100,6 +105,7 @@ export class AttendanceController {
         },
     ) {
         return this.attendanceService.markAbsent(
+            req.user.tenantId,
             body.childId,
             body.reason,
             body.notified ?? true,

@@ -1,9 +1,11 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AnnouncementsService } from './announcements.service';
+import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { Permission } from '../common/permissions.enum';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 
 @Controller('announcements')
-@UseGuards(JwtAuthGuard)
 export class AnnouncementsController {
     constructor(private readonly announcementsService: AnnouncementsService) { }
 
@@ -11,6 +13,7 @@ export class AnnouncementsController {
      * Get all announcements for the tenant
      */
     @Get()
+    @RequirePermissions(Permission.ANNOUNCEMENTS_READ)
     async getAnnouncements(
         @Req() req: any,
         @Query('limit') limit?: string,
@@ -30,6 +33,7 @@ export class AnnouncementsController {
      * Get unread count for current user
      */
     @Get('unread-count')
+    @RequirePermissions(Permission.ANNOUNCEMENTS_READ)
     async getUnreadCount(@Req() req: any) {
         const count = await this.announcementsService.getUnreadCount(
             req.user.tenantId,
@@ -39,9 +43,10 @@ export class AnnouncementsController {
     }
 
     /**
-     * Create a new announcement (staff only)
+     * Create a new announcement (staff with write permission only)
      */
     @Post()
+    @RequirePermissions(Permission.ANNOUNCEMENTS_WRITE)
     async createAnnouncement(
         @Req() req: any,
         @Body() body: {
@@ -66,17 +71,19 @@ export class AnnouncementsController {
      * Mark an announcement as read
      */
     @Patch(':id/read')
+    @RequirePermissions(Permission.ANNOUNCEMENTS_READ)
     async markAsRead(
         @Param('id') id: string,
         @Req() req: any,
     ) {
-        return this.announcementsService.markAsRead(id, req.user.sub);
+        return this.announcementsService.markAsRead(id, req.user.sub, req.user.tenantId);
     }
 
     /**
-     * Delete an announcement
+     * Delete an announcement (requires write permission)
      */
     @Delete(':id')
+    @RequirePermissions(Permission.ANNOUNCEMENTS_WRITE)
     async deleteAnnouncement(
         @Param('id') id: string,
         @Req() req: any,

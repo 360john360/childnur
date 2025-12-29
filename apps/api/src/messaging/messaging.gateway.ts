@@ -80,41 +80,28 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
         @ConnectedSocket() client: AuthenticatedSocket,
         @MessageBody() data: { conversationId: string; content: string; attachmentUrls?: string[] },
     ) {
-        if (!client.userId) {
+        if (!client.userId || !client.tenantId) {
             return { error: 'Not authenticated' };
         }
 
         try {
             const message = await this.messagingService.sendMessage({
+                tenantId: client.tenantId,
                 conversationId: data.conversationId,
                 senderId: client.userId,
                 content: data.content,
                 attachmentUrls: data.attachmentUrls,
             });
 
-            // Prepare message payload (without internal conversation data)
+            // Prepare message payload
             const messagePayload = {
                 ...message,
-                conversation: undefined,
             };
-
-            // Get recipient ID
-            const recipientId = message.conversation.staffUserId === client.userId
-                ? message.conversation.parentUserId
-                : message.conversation.staffUserId;
 
             // Emit to SENDER immediately so their UI updates
             client.emit('message_received', messagePayload);
 
-            // Check if recipient is in quiet hours
-            const inQuietHours = await this.messagingService.isInQuietHours(recipientId);
-
-            // Emit to recipient if not in quiet hours (using their user room)
-            if (!inQuietHours) {
-                this.server.to(`user:${recipientId}`).emit('message_received', messagePayload);
-            }
-
-            // Also emit to conversation room for anyone else listening (managers)
+            // Also emit to conversation room for anyone else listening
             this.server.to(`conversation:${data.conversationId}`).emit('message_received', messagePayload);
 
             // Confirm to sender

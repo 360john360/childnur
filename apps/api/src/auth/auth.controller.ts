@@ -12,7 +12,8 @@ import {
 } from '@nestjs/common';
 import { AuthService, AuthTokens } from './auth.service';
 import { AuditService } from '../audit/audit.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtOnlyAllowed } from '../common/decorators/jwt-only.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
@@ -22,6 +23,7 @@ export class AuthController {
         private auditService: AuditService,
     ) { }
 
+    @Public()
     @Post('login')
     @HttpCode(HttpStatus.OK)
     async login(
@@ -41,13 +43,13 @@ export class AuthController {
     }
 
     @Get('profile')
-    @UseGuards(JwtAuthGuard)
+    @JwtOnlyAllowed()
     async getProfile(@Request() req: any) {
         return this.authService.getProfile(req.user.sub);
     }
 
     @Post('logout')
-    @UseGuards(JwtAuthGuard)
+    @JwtOnlyAllowed()
     @HttpCode(HttpStatus.OK)
     async logout(@Request() req: any) {
         const user = req.user;
@@ -62,6 +64,7 @@ export class AuthController {
      * POST /api/auth/magic-link
      * Request a magic link for passwordless login (parents)
      */
+    @Public()
     @Post('magic-link')
     @HttpCode(HttpStatus.OK)
     async requestMagicLink(@Body() body: { email: string }) {
@@ -72,6 +75,7 @@ export class AuthController {
      * GET /api/auth/magic-link/verify
      * Verify a magic link token and return JWT
      */
+    @Public()
     @Get('magic-link/verify')
     async verifyMagicLink(
         @Query('token') token: string,
