@@ -35,6 +35,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useUnreadCount } from "@/hooks/use-messaging";
 
 const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -57,6 +58,7 @@ export default function DashboardLayout({
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [tenantName, setTenantName] = useState<string>("Loading...");
+    const { data: unreadData } = useUnreadCount();
 
     useEffect(() => {
         // Read tenant name from stored user data
@@ -155,9 +157,9 @@ export default function DashboardLayout({
                                 >
                                     <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                                     <span className={isActive ? "font-medium" : ""}>{item.name}</span>
-                                    {item.name === "Messages" && (
+                                    {item.name === "Messages" && (unreadData?.unreadCount ?? 0) > 0 && (
                                         <span className="ml-auto px-2 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">
-                                            3
+                                            {unreadData!.unreadCount > 99 ? '99+' : unreadData!.unreadCount}
                                         </span>
                                     )}
                                 </Link>

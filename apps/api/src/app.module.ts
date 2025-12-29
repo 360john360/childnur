@@ -9,6 +9,7 @@ import { ParentModule } from './parent/parent.module';
 import { BillingModule } from './billing/billing.module';
 import { AuditModule } from './audit/audit.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { MessagingModule } from './messaging/messaging.module';
     ParentModule,
     BillingModule,
     MessagingModule,
+    AnnouncementsModule,
   ],
 })
 export class AppModule { }

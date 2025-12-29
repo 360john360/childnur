@@ -4,10 +4,11 @@ import { MessagingService } from './messaging.service';
 import { MessagingController } from './messaging.controller';
 import { MessagingGateway } from './messaging.gateway';
 import { UploadController } from './upload.controller';
+import { FileProcessingService } from './file-processing.service';
 
 @Module({
     imports: [AuthModule], // Import AuthModule which exports JwtModule with correct secret
-    providers: [MessagingService, MessagingGateway],
+    providers: [MessagingService, MessagingGateway, FileProcessingService],
     controllers: [MessagingController, UploadController],
     exports: [MessagingService],
 })

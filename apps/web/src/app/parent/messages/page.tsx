@@ -2,15 +2,18 @@
 
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useConversations, useMessages, useMessagingSocket, useSendMessage, useUnreadCount, useCreateConversation, useKeyPerson } from '@/hooks/use-messaging';
+import { useAnnouncements, useMarkAnnouncementRead } from '@/hooks/use-announcements';
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
 import { useSelectedChild } from '../layout';
-import { MessageCircle, Send, ArrowLeft, Paperclip, Check, CheckCheck, File } from 'lucide-react';
+import { MessageCircle, Send, ArrowLeft, Paperclip, Check, CheckCheck, File, X, Megaphone, Bell, AlertTriangle } from 'lucide-react';
+import { Lightbox, AttachmentPreview, Attachment } from '@/components/ui/lightbox';
 
 export default function ParentMessagesPage() {
     const { selectedChildId, children } = useSelectedChild();
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [messageInput, setMessageInput] = useState('');
-    const [attachments, setAttachments] = useState<string[]>([]);
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
+    const [lightboxAttachment, setLightboxAttachment] = useState<Attachment | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -21,6 +24,12 @@ export default function ParentMessagesPage() {
     const { connected, sendMessage, markAsRead, joinConversation, leaveConversation } = useMessagingSocket();
     const sendMessageMutation = useSendMessage();
     const createConversationMutation = useCreateConversation();
+
+    // Announcements
+    const { data: announcements } = useAnnouncements();
+    const markAnnouncementReadMutation = useMarkAnnouncementRead();
+    const [selectedAnnouncement, setSelectedAnnouncement] = useState<any>(null);
+    const unreadAnnouncements = announcements?.filter(a => !a.isRead) || [];
 
     // Current user ID from token
     const currentUserId = typeof window !== 'undefined' ?
@@ -52,17 +61,17 @@ export default function ParentMessagesPage() {
         if ((!messageInput.trim() && attachments.length === 0) || !selectedConversationId) return;
 
         const content = messageInput.trim();
+        const attachmentUrls = attachments.map(a => a.url);
         setMessageInput('');
-        const pendingAttachments = [...attachments];
         setAttachments([]);
 
         if (connected) {
-            sendMessage(selectedConversationId, content, pendingAttachments.length > 0 ? pendingAttachments : undefined);
+            sendMessage(selectedConversationId, content, attachmentUrls.length > 0 ? attachmentUrls : undefined);
         } else {
             await sendMessageMutation.mutateAsync({
                 conversationId: selectedConversationId,
                 content,
-                attachmentUrls: pendingAttachments.length > 0 ? pendingAttachments : undefined,
+                attachmentUrls: attachmentUrls.length > 0 ? attachmentUrls : undefined,
             });
         }
     };
@@ -91,7 +100,7 @@ export default function ParentMessagesPage() {
             formData.append('file', file);
 
             try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/messaging/upload`, {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/messaging/upload`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData,
@@ -99,17 +108,13 @@ export default function ParentMessagesPage() {
 
                 if (response.ok) {
                     const data = await response.json();
-                    uploadedUrls.push(data.url);
+                    setAttachments(prev => [...prev, data]);
                 } else {
                     console.error('Upload failed:', await response.text());
                 }
             } catch (error) {
                 console.error('Upload error:', error);
             }
-        }
-
-        if (uploadedUrls.length > 0) {
-            setAttachments(prev => [...prev, ...uploadedUrls]);
         }
 
         e.target.value = '';
@@ -125,8 +130,68 @@ export default function ParentMessagesPage() {
         return groups;
     }, {});
 
+    // Priority color helper
+    const getPriorityColor = (priority: string) => {
+        switch (priority) {
+            case 'URGENT': return 'bg-red-500/10 text-red-600 border-red-500/30';
+            case 'HIGH': return 'bg-orange-500/10 text-orange-600 border-orange-500/30';
+            case 'LOW': return 'bg-muted text-muted-foreground border-muted';
+            default: return 'bg-primary/10 text-primary border-primary/30';
+        }
+    };
+
     return (
         <div className="flex flex-col h-[calc(100vh-5rem)] max-w-4xl mx-auto">
+            {/* Announcements Banner for Parents */}
+            {unreadAnnouncements.length > 0 && !selectedConversationId && (
+                <div className="mx-4 md:mx-6 mt-4 mb-2">
+                    <div className="bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Megaphone className="h-5 w-5 text-orange-600" />
+                            <span className="font-semibold text-orange-700">
+                                {unreadAnnouncements.length} New Announcement{unreadAnnouncements.length > 1 ? 's' : ''}
+                            </span>
+                        </div>
+                        <div className="space-y-2">
+                            {unreadAnnouncements.slice(0, 3).map((announcement) => (
+                                <button
+                                    key={announcement.id}
+                                    onClick={() => {
+                                        markAnnouncementReadMutation.mutate(announcement.id);
+                                        setSelectedAnnouncement(announcement);
+                                    }}
+                                    className="w-full text-left p-3 bg-white/50 rounded-lg border border-orange-500/20 hover:bg-white/80 transition-all"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className={`p-1.5 rounded ${getPriorityColor(announcement.priority)}`}>
+                                            {announcement.priority === 'URGENT' || announcement.priority === 'HIGH' ? (
+                                                <AlertTriangle className="h-3.5 w-3.5" />
+                                            ) : (
+                                                <Bell className="h-3.5 w-3.5" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <span className="font-medium text-sm">{announcement.title}</span>
+                                            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                                {announcement.content}
+                                            </p>
+                                        </div>
+                                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                            {formatDistanceToNow(new Date(announcement.publishedAt), { addSuffix: true })}
+                                        </span>
+                                    </div>
+                                </button>
+                            ))}
+                            {unreadAnnouncements.length > 3 && (
+                                <p className="text-xs text-center text-muted-foreground">
+                                    +{unreadAnnouncements.length - 3} more
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="p-4 md:p-6 border-b bg-gradient-to-r from-primary/5 to-transparent">
                 <div className="flex items-center justify-between">
@@ -328,17 +393,12 @@ export default function ParentMessagesPage() {
                                                                     {msg.attachmentUrls?.length > 0 && (
                                                                         <div className="mt-2 space-y-1">
                                                                             {msg.attachmentUrls.map((url, i) => (
-                                                                                <a
+                                                                                <AttachmentPreview
                                                                                     key={i}
-                                                                                    href={url}
-                                                                                    target="_blank"
-                                                                                    rel="noopener noreferrer"
-                                                                                    className={`flex items-center gap-2 text-sm underline ${isMine ? 'text-white/90' : 'text-primary'
-                                                                                        }`}
-                                                                                >
-                                                                                    <File className="h-4 w-4" />
-                                                                                    Attachment {i + 1}
-                                                                                </a>
+                                                                                    attachment={url}
+                                                                                    isMine={isMine}
+                                                                                    onClickPreview={(att) => setLightboxAttachment(att)}
+                                                                                />
                                                                             ))}
                                                                         </div>
                                                                     )}
@@ -411,6 +471,64 @@ export default function ParentMessagesPage() {
                     </div>
                 )}
             </div>
+
+            {/* Announcement Detail Modal */}
+            {selectedAnnouncement && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+                        <div className="p-5 border-b flex items-start justify-between bg-gradient-to-r from-orange-500/5 to-transparent">
+                            <div className="flex items-start gap-3">
+                                <div className={`p-2.5 rounded-xl ${getPriorityColor(selectedAnnouncement.priority)}`}>
+                                    {selectedAnnouncement.priority === 'URGENT' || selectedAnnouncement.priority === 'HIGH' ? (
+                                        <AlertTriangle className="h-5 w-5" />
+                                    ) : (
+                                        <Bell className="h-5 w-5" />
+                                    )}
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-semibold">{selectedAnnouncement.title}</h2>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                        <span>From {selectedAnnouncement.createdBy.firstName} {selectedAnnouncement.createdBy.lastName}</span>
+                                        <span>•</span>
+                                        <span>{format(new Date(selectedAnnouncement.publishedAt), 'MMM d, yyyy h:mm a')}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedAnnouncement(null)}
+                                className="p-2 hover:bg-muted rounded-lg transition-colors"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="p-5 flex-1 overflow-y-auto">
+                            <div className="whitespace-pre-wrap text-sm">
+                                {selectedAnnouncement.content}
+                            </div>
+                        </div>
+                        <div className="p-4 border-t bg-muted/30">
+                            <div className="flex items-center justify-between">
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(selectedAnnouncement.priority)}`}>
+                                    {selectedAnnouncement.priority} Priority
+                                </span>
+                                <button
+                                    onClick={() => setSelectedAnnouncement(null)}
+                                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Lightbox for viewing files */}
+            <Lightbox
+                attachment={lightboxAttachment}
+                isOpen={!!lightboxAttachment}
+                onClose={() => setLightboxAttachment(null)}
+            />
         </div>
     );
 }

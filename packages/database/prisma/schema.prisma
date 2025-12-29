@@ -52,6 +52,7 @@ model Tenant {
   medications   MedicationRecord[]
   newsletters   Newsletter[]
   conversations Conversation[]
+  announcements Announcement[]
   
   @@map("tenants")
 }
@@ -100,6 +101,8 @@ model User {
   messages     Message[]  @relation("MessageSender")
   staffConversations  Conversation[] @relation("ConversationStaff")
   parentConversations Conversation[] @relation("ConversationParent")
+  createdAnnouncements Announcement[] @relation("AnnouncementCreator")
+  readAnnouncements   AnnouncementRead[]
   
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -816,6 +819,55 @@ model Message {
   @@index([senderId])
   @@index([createdAt])
   @@map("messages")
+}
+
+/// Announcements - broadcast messages to all guardians
+model Announcement {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  createdById String    @map("created_by_id") @db.Uuid
+  
+  title       String
+  content     String
+  priority    AnnouncementPriority @default(NORMAL)
+  
+  // Optional targeting
+  targetRoomIds String[] @map("target_room_ids") @db.Uuid
+  
+  expiresAt   DateTime? @map("expires_at")
+  publishedAt DateTime  @default(now()) @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  reads       AnnouncementRead[]
+  
+  @@index([tenantId])
+  @@index([publishedAt])
+  @@map("announcements")
+}
+
+enum AnnouncementPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+/// Tracks which users have read an announcement
+model AnnouncementRead {
+  id             String       @id @default(uuid()) @db.Uuid
+  announcementId String       @map("announcement_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  readAt         DateTime     @default(now()) @map("read_at")
+  
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([announcementId, userId])
+  @@index([userId])
+  @@map("announcement_reads")
 }
 
 /// Consent records for various activities

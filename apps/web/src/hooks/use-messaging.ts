@@ -118,6 +118,8 @@ export function useMessagingSocket() {
 
         socket.on('messages_read', (data: { conversationId: string; readBy: string }) => {
             queryClient.invalidateQueries({ queryKey: ['messages', data.conversationId] });
+            queryClient.invalidateQueries({ queryKey: ['conversations'] });
+            queryClient.invalidateQueries({ queryKey: ['unread-count'] });
         });
 
         return () => {
@@ -134,7 +136,10 @@ export function useMessagingSocket() {
     const markAsRead = useCallback((conversationId: string) => {
         if (!socket?.connected) return;
         socket.emit('mark_read', { conversationId });
-    }, []);
+        // Immediately invalidate caches for responsive UI
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+    }, [queryClient]);
 
     const joinConversation = useCallback((conversationId: string) => {
         if (!socket?.connected) return;

@@ -1,0 +1,226 @@
+# Coding Standard: Preventing Massive Files (MVC + Front End + API)
+
+## Purpose
+Keep files small, focused, testable, and readable while following a Model View Controller (MVC) paradigm.
+
+This standard defines:
+- How MVC maps to both back end and front end
+- File size and responsibility limits
+- Required folder structure and naming
+- Rules for extracting components, hooks, services, and utilities
+- A checklist the AI agent must follow before committing code
+
+## Core Principle: One File, One Primary Responsibility
+Each file must have a single primary reason to change.
+
+If a file contains multiple responsibilities (examples below), it must be split.
+
+Examples of mixed responsibilities:
+- UI rendering + network calls + socket lifecycle + complex data transforms
+- Controller logic + validation + database calls + formatting responses
+- A page that includes multiple feature domains (messages AND announcements)
+
+## Hard Limits (Enforced by Convention)
+These are deliberate guardrails.
+
+### React / Next.js files
+- Page component: target <= 200 lines, hard cap 300
+- UI component: target <= 150 lines, hard cap 250
+- Hook: target <= 120 lines, hard cap 200
+- Utility module: target <= 120 lines, hard cap 200
+
+If a file exceeds the hard cap, it must be split in the same PR.
+
+### Back end files
+- Controller: target <= 150 lines, hard cap 250
+- Service: target <= 200 lines, hard cap 350
+- Repository/data access: target <= 200 lines, hard cap 350
+- Model/schema: target <= 200 lines, hard cap 350
+
+## MVC Mapping (Back End)
+### Model
+Owns data shape and invariants.
+Examples:
+- ORM entities, database schema, domain objects, DTOs
+- Validation rules that are truly part of the data definition
+
+Must NOT:
+- Call external services
+- Contain HTTP logic
+- Contain request/response formatting
+
+### Controller
+Owns HTTP and transport concerns.
+Examples:
+- Parse request
+- Call service
+- Map service result to HTTP response
+- Handle status codes and errors
+
+Must NOT:
+- Contain business rules beyond simple input gating
+- Perform database queries directly
+- Perform multi-step workflows
+
+### Service
+Owns business workflows.
+Examples:
+- Create conversation and emit events
+- Messaging rules, authorization checks, state transitions
+- Orchestrate repository calls and external APIs
+
+Must NOT:
+- Know about HTTP request/response
+- Return framework-specific objects
+
+### Repository (Recommended addition)
+Owns persistence details.
+Examples:
+- Query building, SQL/ORM operations
+- Transactions (or transaction helpers)
+
+## MVC Mapping (Front End)
+Front end does not map 1:1 to classic MVC, so we adopt a practical equivalent.
+
+### Model (Front End)
+- TypeScript types and domain models
+- State shape contracts
+- Data mappers and validators
+Location:
+- `src/features/<feature>/model/*`
+
+### View (Front End)
+- Pure presentational components
+- Minimal logic: props, rendering, UI events
+Location:
+- `src/features/<feature>/components/*`
+
+### Controller (Front End)
+- Orchestration layer that connects state, hooks, and views
+- In Next.js this is usually the page-level component or a feature container
+Location:
+- `src/features/<feature>/containers/*` or the page itself
+
+### Services (Front End)
+- API clients, websocket clients, upload helpers
+Location:
+- `src/features/<feature>/services/*` or `src/services/*`
+
+### Hooks (Front End)
+- Stateful logic that coordinates services and state
+Location:
+- `src/features/<feature>/hooks/*`
+
+### Utils (Front End)
+- Pure functions: grouping, formatting, mapping
+Location:
+- `src/features/<feature>/utils/*`
+
+## Required Folder Structure (Feature First)
+All new work must be feature-scoped.
+
+src/
+  features/
+    messaging/
+      components/
+      containers/
+      hooks/
+      model/
+      services/
+      utils/
+      __tests__/
+    announcements/
+      components/
+      containers/
+      hooks/
+      model/
+      services/
+      utils/
+      __tests__/
+
+Shared code:
+- `src/components/ui/*` only for generic UI primitives
+- `src/lib/*` for cross-cutting helpers (date, auth, logging)
+- `src/services/*` for shared API clients
+
+Rule:
+If code references domain terms like "conversation", "announcement", "parent", it belongs in a feature folder, not a global folder.
+
+## Naming Conventions
+- React components: PascalCase, one component per file
+  - `ConversationSidebar.tsx`, `MessageThread.tsx`
+- Hooks: `useX.ts`
+  - `useConversationRoom.ts`, `useAttachmentUpload.ts`
+- Services: noun-based modules
+  - `messagingApi.ts`, `messagingSocket.ts`, `uploadService.ts`
+- Utilities: verb-based pure functions
+  - `groupMessagesByDate.ts`, `formatMessageDate.ts`
+- Types: `*.types.ts` or in `model/`
+  - `messaging.types.ts`
+
+## Mandatory Extraction Rules (When to Split)
+The AI agent must split code if ANY of these are true:
+
+### React component split triggers
+- Component has more than 2 useEffect blocks
+- Component manages more than 6 useState hooks
+- Component renders more than 2 distinct "screens" or feature modes
+- Component contains networking logic (fetch, socket) AND renders UI
+- Component includes more than one modal implementation
+- Component contains a loop with state updates inside it (render churn risk)
+
+### Back end split triggers
+- Controller calls database or ORM directly
+- Controller contains multi-step workflow with branching logic
+- Service performs both business logic and persistence queries in-line
+- File contains more than one class with unrelated concerns
+
+## State Management Rules (Front End)
+- Pages/containers may own routing and selection state (for example selectedConversationId)
+- Views should be stateless where possible and use props callbacks
+- Hooks should own side effects and coordinate services
+- Pure transforms go in utils and are unit-tested
+
+## Side Effects and Services
+- No direct localStorage parsing inside components
+  - Use `src/lib/auth/getCurrentUserId.ts` or `useCurrentUserId()`
+  - Must handle missing or malformed token safely
+- No direct fetch calls inside View components
+  - Fetch belongs in services or hooks
+
+## Testing Minimums
+- Any non-trivial utility function must have unit tests
+- Any service module must have tests or be covered by integration tests
+- Any hook with side effects must have at least a basic test or story-driven coverage
+
+## Performance Rules (Front End)
+- Avoid setState inside loops
+  - Collect results then update once
+- Use memoization for expensive grouping/sorting if inputs are large
+- Split large lists into components and consider virtualization if needed
+
+## Documentation Rules
+Every feature folder must contain:
+- `README.md` describing responsibilities and entry points
+- `index.ts` exporting public API for the feature (optional but recommended)
+
+## AI Agent Checklist (Must Pass Before Commit)
+1) Does each file have one primary responsibility
+2) Are file size caps respected
+3) Did I avoid network calls in View components
+4) Did I move side effects into hooks
+5) Did I move pure transforms into utils with tests
+6) Did I keep controllers thin and services in charge of workflows
+7) Did I avoid parsing auth tokens directly in UI components
+8) Did I split by feature domain (messaging vs announcements)
+
+If any answer is "no", refactor before merging.
+
+## Example: Refactor Pattern for a Large Page
+Large page responsibilities get split into:
+- Container/Page: owns tab selection and selected conversation id
+- Sidebar: conversations list, announcements list
+- Thread: message rendering and input
+- Modals: each modal in its own component
+- Hooks: socket room join/leave, auto scroll, uploads
+- Utils: grouping and date formatting

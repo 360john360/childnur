@@ -544,6 +544,7 @@
    ============================================================================ */
 
 @media print {
+
   /* Hide sidebar and navigation */
   [data-slot="sidebar"],
   aside,
@@ -566,7 +567,8 @@
   }
 
   /* Reset body and html */
-  html, body {
+  html,
+  body {
     background: white !important;
     background-image: none !important;
     -webkit-print-color-adjust: exact !important;
@@ -575,13 +577,11 @@
 
   /* Hide interactive elements */
   button:not(.print-show),
-  .print\\:hidden,
   [class*="print:hidden"] {
     display: none !important;
   }
 
   /* Ensure print content shows */
-  .print\\:block,
   [class*="print:block"] {
     display: block !important;
   }
